@@ -1,0 +1,25 @@
+[project]
+name = "swimops"
+version = "0.1.0"
+description = "Small CLI for accessing personal Garmin Connect activities"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "garminconnect>=0.3.11,<0.4",
+]
+
+[project.scripts]
+garmin = "swimops.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4,<9",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.10,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
