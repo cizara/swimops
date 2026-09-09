@@ -872,6 +872,7 @@ dependencies = [
     { name = "garmin-fit-sdk" },
     { name = "garminconnect" },
     { name = "mcp" },
+    { name = "pydantic" },
 ]
 
 [package.dev-dependencies]
@@ -884,6 +885,7 @@ requires-dist = [
     { name = "garmin-fit-sdk", specifier = ">=21.214.0" },
     { name = "garminconnect", specifier = ">=0.3.11,<0.4" },
     { name = "mcp", specifier = ">=2,<3" },
+    { name = "pydantic", specifier = ">=2,<3" },
 ]
 
 [package.metadata.requires-dev]

@@ -16,6 +16,7 @@ from swimops.activities import format_activities, get_activities
 from swimops.auth import SessionNotFoundError, load_session, login, token_store_path
 from swimops.processing import parse_swims
 from swimops.sync import sync_activities
+from swimops.workouts import load_workout, workout_preview
 
 
 def positive_int(value: str) -> int:
@@ -48,6 +49,10 @@ def build_parser() -> argparse.ArgumentParser:
     parse = commands.add_parser("parse-swims", help="procesa los FIT de natación en piscina")
     parse.add_argument("--data-dir", type=Path, default=Path("data"))
     parse.add_argument("--force", action="store_true", help="vuelve a procesar sesiones existentes")
+    preview = commands.add_parser(
+        "workout-preview", help="valida y muestra una rutina de natación"
+    )
+    preview.add_argument("file", type=Path)
     return parser
 
 
@@ -66,6 +71,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"Existentes: {summary.existing} | Fallidas: {summary.failed}"
             )
             return 1 if summary.failed else 0
+
+        if args.command == "workout-preview":
+            print(workout_preview(load_workout(args.file))["text"])
+            return 0
 
         client = load_session()
         if args.command == "activities":

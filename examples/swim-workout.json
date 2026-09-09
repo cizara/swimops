@@ -1,0 +1,37 @@
+{
+  "name": "CSS intervals",
+  "sport": "swimming",
+  "pool_length_m": 25,
+  "steps": [
+    {
+      "type": "warmup",
+      "distance_m": 400,
+      "stroke": "mixed"
+    },
+    {
+      "type": "repeat",
+      "repeat": 8,
+      "steps": [
+        {
+          "type": "swim",
+          "distance_m": 100,
+          "stroke": "freestyle",
+          "target": {
+            "type": "pace",
+            "min": "1:42",
+            "max": "1:48"
+          }
+        },
+        {
+          "type": "rest",
+          "duration_s": 20
+        }
+      ]
+    },
+    {
+      "type": "cooldown",
+      "distance_m": 300,
+      "stroke": "mixed"
+    }
+  ]
+}

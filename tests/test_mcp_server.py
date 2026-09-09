@@ -21,12 +21,23 @@ def test_exposes_read_only_history_tools(
         async with Client(mcp, mode="legacy") as client:
             tools = await client.list_tools()
             result = await client.call_tool("list_activities", {"limit": 10})
+            preview = await client.call_tool(
+                "preview_swim_workout",
+                {
+                    "workout": {
+                        "name": "Suave",
+                        "pool_length_m": 25,
+                        "steps": [{"type": "swim", "distance_m": 500}],
+                    }
+                },
+            )
 
         assert {tool.name for tool in tools.tools} == {
             "list_activities",
             "get_activity",
             "get_swim_history",
             "get_swim_session",
+            "preview_swim_workout",
         }
         assert all(tool.annotations.read_only_hint for tool in tools.tools)
         assert result.structured_content == {
@@ -39,5 +50,6 @@ def test_exposes_read_only_history_tools(
                 }
             ]
         }
+        assert preview.structured_content["total_distance_m"] == 500
 
     asyncio.run(check_server())

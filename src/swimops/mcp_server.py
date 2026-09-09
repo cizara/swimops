@@ -8,6 +8,7 @@ from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
 
 from swimops.queries import GarminHistory
+from swimops.workouts import SwimWorkout, workout_preview
 
 
 mcp = MCPServer(
@@ -58,6 +59,12 @@ async def get_swim_session(
 ) -> dict[str, Any]:
     """Devuelve resumen, laps y, opcionalmente, cada largo de una sesión de piscina."""
     return _history().get_swim_session(activity_id, include_lengths)
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def preview_swim_workout(workout: dict[str, Any]) -> dict[str, Any]:
+    """Valida una propuesta de rutina y devuelve una vista previa; no escribe en Garmin."""
+    return workout_preview(SwimWorkout.model_validate(workout))
 
 
 def main() -> None:

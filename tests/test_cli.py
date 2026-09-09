@@ -89,3 +89,19 @@ def test_parse_swims_does_not_load_garmin_session(
 
     assert cli.main(["parse-swims"]) == 0
     assert capsys.readouterr().out == "Procesadas: 28 | Existentes: 0 | Fallidas: 0\n"
+
+
+def test_workout_preview_does_not_load_garmin_session(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "workout.json"
+    path.write_text(
+        '{"name":"Técnica","pool_length_m":25,'
+        '"steps":[{"type":"swim","distance_m":100,"stroke":"drill"}]}'
+    )
+    monkeypatch.setattr(cli, "load_session", lambda: pytest.fail("unexpected login"))
+
+    assert cli.main(["workout-preview", str(path)]) == 0
+    assert "Distancia total: 100 m" in capsys.readouterr().out

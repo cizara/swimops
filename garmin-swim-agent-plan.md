@@ -334,6 +334,12 @@ Devuelve detalle de una sesión:
 
 # Fase 3 — Generación de workouts
 
+Estado:
+
+- [x] Schema propio, validación y vista previa local/MCP.
+- [ ] Conversión al formato de Garmin y creación del workout.
+- [ ] Programación del workout en una fecha.
+
 Reutilizar la lógica de `goosegit97/garmin-mcp`.
 
 El agente **no genera directamente el JSON interno de Garmin**.

@@ -92,6 +92,18 @@ Configuración genérica para un host MCP:
 
 Otro usuario sólo necesita cambiar ambas rutas. El servidor consulta SQLite localmente y no contacta Garmin Connect.
 
+## Propuestas de workouts
+
+Una rutina puede validarse y revisarse localmente antes de crearla en Garmin:
+
+```bash
+uv run garmin workout-preview examples/swim-workout.json
+```
+
+El formato admite calentamiento, nado, descansos, repeticiones y vuelta a la calma. La longitud de piscina forma parte de cada propuesta y todas las distancias deben ser múltiplos de ella. La vista previa muestra la distancia total y el descanso programado.
+
+El MCP expone también `preview_swim_workout`. Esta herramienta sólo valida y presenta la propuesta; no contacta Garmin ni crea workouts.
+
 Para elegir otro directorio de tokens, siempre fuera del repositorio:
 
 ```bash
