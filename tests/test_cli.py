@@ -1,6 +1,11 @@
+from datetime import date
+from pathlib import Path
+
 import pytest
 
-from swimops.cli import build_parser, positive_int
+from swimops import cli
+from swimops.cli import build_parser, iso_date, positive_int
+from swimops.sync import SyncSummary
 
 
 def test_activities_defaults_to_ten() -> None:
@@ -11,3 +16,53 @@ def test_activities_defaults_to_ten() -> None:
 def test_limit_must_be_positive() -> None:
     with pytest.raises(Exception):
         positive_int("0")
+
+
+def test_sync_arguments() -> None:
+    args = build_parser().parse_args(
+        [
+            "sync",
+            "--since",
+            "2026-04-15",
+            "--until",
+            "2026-09-09",
+            "--data-dir",
+            "/tmp/garmin-data",
+        ]
+    )
+
+    assert args.since == date(2026, 4, 15)
+    assert args.until == date(2026, 9, 9)
+    assert args.data_dir == Path("/tmp/garmin-data")
+
+
+def test_iso_date_requires_extended_format() -> None:
+    with pytest.raises(Exception):
+        iso_date("20260909")
+
+
+def test_sync_prints_summary_and_fails_if_an_activity_failed(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    client = object()
+    monkeypatch.setattr(cli, "load_session", lambda: client)
+
+    def run_sync(
+        received_client: object,
+        since: date,
+        until: date,
+        data_dir: Path,
+    ) -> SyncSummary:
+        assert received_client is client
+        assert (since, until) == (date(2026, 4, 15), date(2026, 9, 9))
+        assert data_dir == Path("data")
+        return SyncSummary(downloaded=2, existing=3, failed=1)
+
+    monkeypatch.setattr(cli, "sync_activities", run_sync)
+
+    result = cli.main(
+        ["sync", "--since", "2026-04-15", "--until", "2026-09-09"]
+    )
+
+    assert result == 1
+    assert capsys.readouterr().out == "Descargadas: 2 | Existentes: 3 | Fallidas: 1\n"
