@@ -6,6 +6,8 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
+from swimops.swimming import ParsedSwim
+
 
 @dataclass(frozen=True, slots=True)
 class Activity:
@@ -42,6 +44,24 @@ class ActivityRepository:
         ).fetchone()
         return row is not None
 
+    def list_activities(self, sport: str | None = None) -> list[Activity]:
+        query = "SELECT garmin_id, activity_date, sport, name, fit_path FROM activities"
+        parameters: tuple[str, ...] = ()
+        if sport is not None:
+            query += " WHERE sport = ?"
+            parameters = (sport,)
+        query += " ORDER BY activity_date"
+        return [
+            Activity(row[0], row[1], row[2], row[3], Path(row[4]))
+            for row in self._connection.execute(query, parameters)
+        ]
+
+    def is_swim_parsed(self, activity_id: int) -> bool:
+        row = self._connection.execute(
+            "SELECT 1 FROM swim_sessions WHERE activity_id = ?", (activity_id,)
+        ).fetchone()
+        return row is not None
+
     def register(self, activity: Activity) -> bool:
         """Registra una actividad y devuelve ``False`` si ya existía.
 
@@ -65,6 +85,81 @@ class ActivityRepository:
             )
         return result.rowcount == 1
 
+    def replace_swim(self, swim: ParsedSwim) -> None:
+        activity_id = swim.session.activity_id
+        with self._connection:
+            for table in ("hr_zones", "swim_lengths", "swim_laps", "swim_sessions"):
+                self._connection.execute(
+                    f"DELETE FROM {table} WHERE activity_id = ?", (activity_id,)
+                )
+            session = swim.session
+            self._connection.execute(
+                """
+                INSERT INTO swim_sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    session.activity_id,
+                    session.pool_length_m,
+                    session.total_lengths,
+                    session.active_lengths,
+                    session.distance_m,
+                    session.elapsed_time_s,
+                    session.timer_time_s,
+                    session.swim_time_s,
+                    session.avg_pace_100m,
+                    session.avg_hr,
+                    session.max_hr,
+                    session.total_strokes,
+                    session.avg_strokes_per_length,
+                    session.avg_swolf,
+                ),
+            )
+            self._connection.executemany(
+                "INSERT INTO swim_laps VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                    (
+                        lap.activity_id,
+                        lap.lap_index,
+                        lap.workout_step_index,
+                        lap.distance_m,
+                        lap.elapsed_time_s,
+                        lap.timer_time_s,
+                        lap.swim_time_s,
+                        lap.pace_100m,
+                        lap.stroke_type,
+                        lap.stroke_count,
+                        lap.active_lengths,
+                        lap.avg_hr,
+                        lap.max_hr,
+                        lap.avg_swolf,
+                    )
+                    for lap in swim.laps
+                ],
+            )
+            self._connection.executemany(
+                "INSERT INTO swim_lengths VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                    (
+                        length.activity_id,
+                        length.length_index,
+                        length.length_type,
+                        length.distance_m,
+                        length.duration_s,
+                        length.stroke_type,
+                        length.stroke_count,
+                        length.swolf,
+                    )
+                    for length in swim.lengths
+                ],
+            )
+            self._connection.executemany(
+                "INSERT INTO hr_zones VALUES (?, ?, ?, ?)",
+                [
+                    (zone.activity_id, zone.zone, zone.seconds, zone.high_boundary_bpm)
+                    for zone in swim.hr_zones
+                ],
+            )
+
     def _create_schema(self) -> None:
         with self._connection:
             self._connection.execute(
@@ -75,6 +170,73 @@ class ActivityRepository:
                     sport TEXT NOT NULL,
                     name TEXT NOT NULL,
                     fit_path TEXT NOT NULL
+                )
+                """
+            )
+            self._connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS swim_sessions (
+                    activity_id INTEGER PRIMARY KEY,
+                    pool_length_m REAL NOT NULL,
+                    total_lengths INTEGER NOT NULL,
+                    active_lengths INTEGER NOT NULL,
+                    distance_m REAL NOT NULL,
+                    elapsed_time_s REAL NOT NULL,
+                    timer_time_s REAL NOT NULL,
+                    swim_time_s REAL NOT NULL,
+                    avg_pace_100m REAL,
+                    avg_hr INTEGER,
+                    max_hr INTEGER,
+                    total_strokes INTEGER NOT NULL,
+                    avg_strokes_per_length REAL,
+                    avg_swolf REAL
+                )
+                """
+            )
+            self._connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS swim_laps (
+                    activity_id INTEGER NOT NULL,
+                    lap_index INTEGER NOT NULL,
+                    workout_step_index INTEGER,
+                    distance_m REAL NOT NULL,
+                    elapsed_time_s REAL NOT NULL,
+                    timer_time_s REAL NOT NULL,
+                    swim_time_s REAL NOT NULL,
+                    pace_100m REAL,
+                    stroke_type TEXT,
+                    stroke_count INTEGER NOT NULL,
+                    active_lengths INTEGER NOT NULL,
+                    avg_hr INTEGER,
+                    max_hr INTEGER,
+                    avg_swolf REAL,
+                    PRIMARY KEY (activity_id, lap_index)
+                )
+                """
+            )
+            self._connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS swim_lengths (
+                    activity_id INTEGER NOT NULL,
+                    length_index INTEGER NOT NULL,
+                    length_type TEXT NOT NULL,
+                    distance_m REAL NOT NULL,
+                    duration_s REAL NOT NULL,
+                    stroke_type TEXT,
+                    stroke_count INTEGER,
+                    swolf REAL,
+                    PRIMARY KEY (activity_id, length_index)
+                )
+                """
+            )
+            self._connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS hr_zones (
+                    activity_id INTEGER NOT NULL,
+                    zone INTEGER NOT NULL,
+                    seconds REAL NOT NULL,
+                    high_boundary_bpm INTEGER,
+                    PRIMARY KEY (activity_id, zone)
                 )
                 """
             )

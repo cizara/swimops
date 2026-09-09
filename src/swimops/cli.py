@@ -14,6 +14,7 @@ from garminconnect import (
 
 from swimops.activities import format_activities, get_activities
 from swimops.auth import SessionNotFoundError, load_session, login, token_store_path
+from swimops.processing import parse_swims
 from swimops.sync import sync_activities
 
 
@@ -44,6 +45,9 @@ def build_parser() -> argparse.ArgumentParser:
     sync.add_argument("--since", type=iso_date, required=True)
     sync.add_argument("--until", type=iso_date)
     sync.add_argument("--data-dir", type=Path, default=Path("data"))
+    parse = commands.add_parser("parse-swims", help="procesa los FIT de natación en piscina")
+    parse.add_argument("--data-dir", type=Path, default=Path("data"))
+    parse.add_argument("--force", action="store_true", help="vuelve a procesar sesiones existentes")
     return parser
 
 
@@ -54,6 +58,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             login()
             print(f"Sesión guardada en {token_store_path()}")
             return 0
+
+        if args.command == "parse-swims":
+            summary = parse_swims(args.data_dir, args.force)
+            print(
+                f"Procesadas: {summary.parsed} | "
+                f"Existentes: {summary.existing} | Fallidas: {summary.failed}"
+            )
+            return 1 if summary.failed else 0
 
         client = load_session()
         if args.command == "activities":
@@ -68,7 +80,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"Descargadas: {summary.downloaded} | "
             f"Existentes: {summary.existing} | Fallidas: {summary.failed}"
         )
-        return 1 if summary.failed else 0
+        parse_summary = parse_swims(args.data_dir)
+        print(
+            f"Natación procesada: {parse_summary.parsed} | "
+            f"Existente: {parse_summary.existing} | Fallida: {parse_summary.failed}"
+        )
+        return 1 if summary.failed or parse_summary.failed else 0
     except (SessionNotFoundError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
     except GarminConnectAuthenticationError:

@@ -270,6 +270,15 @@ wheels = [
 ]
 
 [[package]]
+name = "garmin-fit-sdk"
+version = "21.214.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/31/ec/95de48c64dba3480048401c7f09839b5c70627b9250ac388e2cb180b56ae/garmin_fit_sdk-21.214.0.tar.gz", hash = "sha256:c64c61c5582fc3e609a09a64ff9ff1ee78126da91dfc72ceefd378a92bb290ce", size = 199222, upload-time = "2026-08-25T17:25:23.838Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/63/b5/5576f3336eea7edb2385177a4e10e3cfb3467aed754bf2242d0a2c2383d2/garmin_fit_sdk-21.214.0-py3-none-any.whl", hash = "sha256:9fa66c8bc6983808e784ba5058c550831c2621862097f41998a3ba129b7b7c6d", size = 219492, upload-time = "2026-08-25T17:25:22.511Z" },
+]
+
+[[package]]
 name = "garminconnect"
 version = "0.3.13"
 source = { registry = "https://pypi.org/simple" }
@@ -373,6 +382,7 @@ name = "swimops"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "garmin-fit-sdk" },
     { name = "garminconnect" },
 ]
 
@@ -382,7 +392,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "garminconnect", specifier = ">=0.3.11,<0.4" }]
+requires-dist = [
+    { name = "garmin-fit-sdk", specifier = ">=21.214.0" },
+    { name = "garminconnect", specifier = ">=0.3.11,<0.4" },
+]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8.4,<9" }]

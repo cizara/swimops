@@ -5,6 +5,7 @@ import pytest
 
 from swimops import cli
 from swimops.cli import build_parser, iso_date, positive_int
+from swimops.processing import ParseSummary
 from swimops.sync import SyncSummary
 
 
@@ -59,10 +60,32 @@ def test_sync_prints_summary_and_fails_if_an_activity_failed(
         return SyncSummary(downloaded=2, existing=3, failed=1)
 
     monkeypatch.setattr(cli, "sync_activities", run_sync)
+    monkeypatch.setattr(
+        cli,
+        "parse_swims",
+        lambda data_dir: ParseSummary(parsed=2, existing=3),
+    )
 
     result = cli.main(
         ["sync", "--since", "2026-04-15", "--until", "2026-09-09"]
     )
 
     assert result == 1
-    assert capsys.readouterr().out == "Descargadas: 2 | Existentes: 3 | Fallidas: 1\n"
+    assert capsys.readouterr().out == (
+        "Descargadas: 2 | Existentes: 3 | Fallidas: 1\n"
+        "Natación procesada: 2 | Existente: 3 | Fallida: 0\n"
+    )
+
+
+def test_parse_swims_does_not_load_garmin_session(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(cli, "load_session", lambda: pytest.fail("unexpected login"))
+    monkeypatch.setattr(
+        cli,
+        "parse_swims",
+        lambda data_dir, force: ParseSummary(parsed=28),
+    )
+
+    assert cli.main(["parse-swims"]) == 0
+    assert capsys.readouterr().out == "Procesadas: 28 | Existentes: 0 | Fallidas: 0\n"
