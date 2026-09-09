@@ -61,6 +61,37 @@ Las sesiones procesadas se omiten en ejecuciones posteriores. Para recalcularlas
 uv run garmin parse-swims --force
 ```
 
+## MCP read-only
+
+El servidor local expone `list_activities`, `get_activity`, `get_swim_history` y `get_swim_session` por `stdio`:
+
+```bash
+uv run garmin-mcp
+```
+
+Configuración genérica para un host MCP:
+
+```json
+{
+  "mcpServers": {
+    "swimops": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/home/lucho/web/cizara/swimops",
+        "run",
+        "garmin-mcp"
+      ],
+      "env": {
+        "GARMIN_DATA_DIR": "/home/lucho/web/cizara/swimops/data"
+      }
+    }
+  }
+}
+```
+
+Otro usuario sólo necesita cambiar ambas rutas. El servidor consulta SQLite localmente y no contacta Garmin Connect.
+
 Para elegir otro directorio de tokens, siempre fuera del repositorio:
 
 ```bash

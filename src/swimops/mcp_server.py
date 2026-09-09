@@ -1,0 +1,68 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Any
+
+from mcp.server import MCPServer
+from mcp.types import ToolAnnotations
+
+from swimops.queries import GarminHistory
+
+
+mcp = MCPServer(
+    "swimops",
+    instructions="Histórico local de actividades Garmin, con detalle de natación en piscina.",
+)
+READ_ONLY = ToolAnnotations(
+    readOnlyHint=True,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=False,
+)
+
+
+def _history() -> GarminHistory:
+    data_dir = Path(os.environ.get("GARMIN_DATA_DIR", "data")).expanduser()
+    return GarminHistory(data_dir / "garmin.sqlite")
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def list_activities(
+    sport: str | None = None,
+    from_date: str | None = None,
+    to_date: str | None = None,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """Lista actividades recientes, con filtros opcionales de deporte y fechas inclusivas."""
+    return _history().list_activities(sport, from_date, to_date, limit)
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def get_activity(activity_id: int) -> dict[str, Any]:
+    """Devuelve el resumen de una actividad y métricas de piscina cuando existen."""
+    return _history().get_activity(activity_id)
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def get_swim_history(
+    from_date: str, to_date: str, limit: int = 30
+) -> list[dict[str, Any]]:
+    """Devuelve un histórico compacto de sesiones de piscina para analizar tendencias."""
+    return _history().get_swim_history(from_date, to_date, limit)
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def get_swim_session(
+    activity_id: int, include_lengths: bool = False
+) -> dict[str, Any]:
+    """Devuelve resumen, laps y, opcionalmente, cada largo de una sesión de piscina."""
+    return _history().get_swim_session(activity_id, include_lengths)
+
+
+def main() -> None:
+    mcp.run()
+
+
+if __name__ == "__main__":
+    main()
