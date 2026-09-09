@@ -8,18 +8,18 @@ Objetivo: descargar y conservar los FIT originales de todas las actividades de G
 
 ## M1 — Conectar con Garmin
 
-- [ ] Inicializar el proyecto con `uv`.
-- [ ] Implementar login y persistencia local de sesión fuera del repositorio.
-- [ ] Listar actividades para comprobar el acceso.
+- [x] Inicializar el proyecto con `uv`.
+- [x] Implementar login y persistencia local de sesión fuera del repositorio.
+- [x] Listar actividades para comprobar el acceso.
 
 Terminado cuando sea posible autenticarse y ver las actividades.
 
 ## M2 — Descargar el histórico
 
-- [ ] Implementar `garmin sync --since YYYY-MM-DD --until YYYY-MM-DD`, con `--until` opcional.
-- [ ] Descargar todos los deportes y guardar los FIT originales por año/mes, sin modificarlos.
-- [ ] Registrar en SQLite lo mínimo: ID de Garmin, fecha, deporte, nombre y ruta del archivo.
-- [ ] Evitar duplicados y permitir retomar descargas interrumpidas.
+- [x] Implementar `garmin sync --since YYYY-MM-DD --until YYYY-MM-DD`, con `--until` opcional.
+- [x] Descargar todos los deportes y guardar los FIT originales por año/mes, sin modificarlos.
+- [x] Registrar en SQLite lo mínimo: ID de Garmin, fecha, deporte, nombre y ruta del archivo.
+- [x] Evitar duplicados y permitir retomar descargas interrumpidas.
 
 Las fechas son configurables e inclusivas. Sin `--until`, se descarga hasta el presente. Se puede ampliar el histórico ejecutando nuevamente con una fecha anterior.
 
@@ -35,9 +35,9 @@ Terminado cuando el histórico esté descargado y repetir el comando no duplique
 
 ## M3 — Verificar y dejarlo usable
 
-- [ ] Comprobar con la cuenta real las descargas y la reanudación; informar actividades fallidas o sin FIT disponible.
-- [ ] Mostrar un resumen de actividades descargadas, existentes y fallidas.
-- [ ] Documentar instalación, login y sincronización con `uv run`.
+- [x] Comprobar con la cuenta real las descargas y la reanudación; informar actividades fallidas o sin FIT disponible.
+- [x] Mostrar un resumen de actividades descargadas, existentes y fallidas.
+- [x] Documentar instalación, login y sincronización con `uv run`.
 
 Terminado cuando se pueda usar mediante los comandos documentados, sin pasos manuales adicionales.
 
