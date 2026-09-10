@@ -24,6 +24,60 @@ def _pace(seconds: float | None) -> str:
     return f"{minutes}:{secs:02d}/100 m"
 
 
+def _comparison(frame: pd.DataFrame, sessions: list[dict], name_by_key: dict[str, str]) -> None:
+    st.subheader("Comparación por rutina")
+    rows = []
+    for key, group in frame.groupby("routine"):
+        summary = summarize_sessions(
+            [session for session in sessions if session["routine"] == key]
+        )
+        rows.append(
+            {
+                "Rutina": name_by_key[key],
+                "Sesiones": summary["sessions"],
+                "Distancia total (m)": summary["distance_m"],
+                "Ritmo": _pace(summary["avg_pace_100m_s"]),
+                "SWOLF": summary["avg_swolf"],
+                "Brazadas/largo": summary["avg_strokes_per_length"],
+                "FC media": summary["avg_hr"],
+            }
+        )
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+
+    metrics = {
+        "Ritmo (s/100 m)": "avg_pace_100m_s",
+        "SWOLF": "avg_swolf",
+        "Brazadas por largo": "avg_strokes_per_length",
+        "Frecuencia cardíaca": "avg_hr",
+        "Distancia": "distance_m",
+    }
+    selected = st.selectbox("Métrica", list(metrics))
+    st.line_chart(frame, x="date", y=metrics[selected], color="Rutina")
+
+
+def _general(frame: pd.DataFrame) -> None:
+    st.subheader("Volumen semanal")
+    weekly = (
+        frame.set_index("date")["distance_m"]
+        .resample("W-MON", label="left")
+        .sum()
+        .rename("Distancia (m)")
+    )
+    st.bar_chart(weekly)
+
+    left, right = st.columns(2)
+    with left:
+        st.subheader("Ritmo por sesión")
+        st.line_chart(frame, x="date", y="avg_pace_100m_s", color="Rutina")
+    with right:
+        st.subheader("Eficiencia")
+        st.line_chart(
+            frame,
+            x="date",
+            y=["avg_swolf", "avg_strokes_per_length"],
+        )
+
+
 def main() -> None:
     st.set_page_config(page_title="SwimOps", page_icon="🏊", layout="wide")
     st.title("SwimOps")
@@ -44,13 +98,18 @@ def main() -> None:
     labels = {item["name"]: item["key"] for item in routines}
 
     st.sidebar.header("Filtros")
+    view = st.sidebar.radio("Vista", ["General", "Comparar rutinas"])
     period = st.sidebar.date_input(
         "Fechas", value=(first_date, last_date), min_value=first_date, max_value=last_date
     )
     if not isinstance(period, tuple) or len(period) != 2:
         st.info("Selecciona una fecha inicial y una final.")
         return
-    selected_labels = st.sidebar.multiselect("Rutinas", list(labels))
+    defaults = list(labels)[:2] if view == "Comparar rutinas" else []
+    selected_labels = st.sidebar.multiselect("Rutinas", list(labels), default=defaults)
+    if view == "Comparar rutinas" and not selected_labels:
+        st.info("Selecciona al menos una rutina para comparar.")
+        return
     main_only = st.sidebar.checkbox("Sólo bloque principal", value=False)
 
     sessions = reports.sessions(
@@ -84,26 +143,10 @@ def main() -> None:
     name_by_key = {item["key"]: item["name"] for item in routines}
     frame["Rutina"] = frame["routine"].map(name_by_key)
 
-    st.subheader("Volumen semanal")
-    weekly = (
-        frame.set_index("date")["distance_m"]
-        .resample("W-MON", label="left")
-        .sum()
-        .rename("Distancia (m)")
-    )
-    st.bar_chart(weekly)
-
-    left, right = st.columns(2)
-    with left:
-        st.subheader("Ritmo por sesión")
-        st.line_chart(frame, x="date", y="avg_pace_100m_s", color="Rutina")
-    with right:
-        st.subheader("Eficiencia")
-        st.line_chart(
-            frame,
-            x="date",
-            y=["avg_swolf", "avg_strokes_per_length"],
-        )
+    if view == "Comparar rutinas":
+        _comparison(frame, sessions, name_by_key)
+    else:
+        _general(frame)
 
     st.subheader("Sesiones")
     table = frame[
@@ -131,7 +174,7 @@ def main() -> None:
         "Brazadas/largo",
         "FC media",
     ]
-    st.dataframe(table, hide_index=True, use_container_width=True)
+    st.dataframe(table, hide_index=True, width="stretch")
 
 
 if __name__ == "__main__":

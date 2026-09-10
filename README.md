@@ -102,7 +102,13 @@ La aplicación local lee el mismo SQLite y permite filtrar sesiones por fecha y 
 uv run streamlit run src/swimops/report_app.py
 ```
 
-Abre `http://localhost:8501` y no modifica los datos.
+Abre `http://localhost:8501` y no modifica los datos. La vista general muestra volumen y evolución; la vista de comparación superpone las rutinas elegidas y permite cambiar entre ritmo, SWOLF, brazadas, frecuencia cardíaca y distancia.
+
+También puede ejecutarse en Docker, conservando los datos en el host y montándolos en modo de sólo lectura:
+
+```bash
+docker compose up --build
+```
 
 ## Propuestas de workouts
 
