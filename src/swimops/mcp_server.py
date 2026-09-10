@@ -7,13 +7,25 @@ from typing import Any
 from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
 
+from swimops.auth import load_session
 from swimops.queries import GarminHistory
-from swimops.workouts import SwimWorkout, workout_preview
+from swimops.workouts import (
+    SwimWorkout,
+    get_garmin_workout,
+    list_garmin_workouts,
+    workout_preview,
+)
 
 
 mcp = MCPServer(
     "swimops",
-    instructions="Histórico local de actividades Garmin, con detalle de natación en piscina.",
+    instructions="Histórico local de actividades y workouts de Garmin Connect.",
+)
+GARMIN_READ_ONLY = ToolAnnotations(
+    readOnlyHint=True,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=True,
 )
 READ_ONLY = ToolAnnotations(
     readOnlyHint=True,
@@ -65,6 +77,18 @@ async def get_swim_session(
 async def preview_swim_workout(workout: dict[str, Any]) -> dict[str, Any]:
     """Valida una propuesta de rutina y devuelve una vista previa; no escribe en Garmin."""
     return workout_preview(SwimWorkout.model_validate(workout))
+
+
+@mcp.tool(annotations=GARMIN_READ_ONLY)
+async def list_workouts(limit: int = 20) -> list[dict[str, Any]]:
+    """Lista workouts de Garmin Connect sin incluir metadatos personales."""
+    return list_garmin_workouts(load_session(), limit)
+
+
+@mcp.tool(annotations=GARMIN_READ_ONLY)
+async def get_workout(workout_id: int) -> dict[str, Any]:
+    """Devuelve el detalle y los segmentos de un workout de Garmin Connect."""
+    return get_garmin_workout(load_session(), workout_id)
 
 
 def main() -> None:

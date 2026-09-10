@@ -105,3 +105,28 @@ def test_workout_preview_does_not_load_garmin_session(
 
     assert cli.main(["workout-preview", str(path)]) == 0
     assert "Distancia total: 100 m" in capsys.readouterr().out
+
+
+def test_workouts_lists_remote_workouts(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    client = object()
+    monkeypatch.setattr(cli, "load_session", lambda: client)
+    monkeypatch.setattr(
+        cli,
+        "list_garmin_workouts",
+        lambda received, limit: [
+            {
+                "workout_id": 123,
+                "name": "Día A",
+                "sport": "swimming",
+                "distance_m": 1500,
+                "duration_s": 0,
+                "pool_length_m": 25,
+                "updated_at": None,
+            }
+        ],
+    )
+
+    assert cli.main(["workouts", "--limit", "5"]) == 0
+    assert "123\tswimming\t1500\t25\tDía A" in capsys.readouterr().out

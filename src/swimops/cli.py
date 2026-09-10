@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from collections.abc import Sequence
 from datetime import date
@@ -16,7 +17,13 @@ from swimops.activities import format_activities, get_activities
 from swimops.auth import SessionNotFoundError, load_session, login, token_store_path
 from swimops.processing import parse_swims
 from swimops.sync import sync_activities
-from swimops.workouts import load_workout, workout_preview
+from swimops.workouts import (
+    format_garmin_workouts,
+    get_garmin_workout,
+    list_garmin_workouts,
+    load_workout,
+    workout_preview,
+)
 
 
 def positive_int(value: str) -> int:
@@ -53,6 +60,10 @@ def build_parser() -> argparse.ArgumentParser:
         "workout-preview", help="valida y muestra una rutina de natación"
     )
     preview.add_argument("file", type=Path)
+    workouts = commands.add_parser("workouts", help="lista workouts de Garmin Connect")
+    workouts.add_argument("--limit", type=positive_int, default=20)
+    workout = commands.add_parser("workout", help="muestra el detalle de un workout")
+    workout.add_argument("workout_id", type=positive_int)
     return parser
 
 
@@ -80,6 +91,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "activities":
             activities = get_activities(client, args.limit)
             print(format_activities(activities))
+            return 0
+
+        if args.command == "workouts":
+            print(format_garmin_workouts(list_garmin_workouts(client, args.limit)))
+            return 0
+
+        if args.command == "workout":
+            print(
+                json.dumps(
+                    get_garmin_workout(client, args.workout_id),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
             return 0
 
         summary = sync_activities(

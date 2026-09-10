@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from mcp import Client
 
+from swimops import mcp_server
 from swimops.mcp_server import mcp
 from swimops.repository import Activity, ActivityRepository
 
@@ -38,6 +39,8 @@ def test_exposes_read_only_history_tools(
             "get_swim_history",
             "get_swim_session",
             "preview_swim_workout",
+            "list_workouts",
+            "get_workout",
         }
         assert all(tool.annotations.read_only_hint for tool in tools.tools)
         assert result.structured_content == {
@@ -51,5 +54,31 @@ def test_exposes_read_only_history_tools(
             ]
         }
         assert preview.structured_content["total_distance_m"] == 500
+
+    asyncio.run(check_server())
+
+
+def test_exposes_remote_workouts_without_writes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class GarminClient:
+        def get_workouts(self, start: int, limit: int):
+            return [
+                {
+                    "workoutId": 123,
+                    "workoutName": "Día A",
+                    "sportType": {"sportTypeKey": "swimming"},
+                    "estimatedDistanceInMeters": 1500,
+                    "poolLength": 25,
+                }
+            ]
+
+    monkeypatch.setattr(mcp_server, "load_session", GarminClient)
+
+    async def check_server() -> None:
+        async with Client(mcp, mode="legacy") as client:
+            result = await client.call_tool("list_workouts", {"limit": 5})
+
+        assert result.structured_content["result"][0]["workout_id"] == 123
 
     asyncio.run(check_server())

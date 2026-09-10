@@ -337,6 +337,7 @@ Devuelve detalle de una sesión:
 Estado:
 
 - [x] Schema propio, validación y vista previa local/MCP.
+- [x] Listado y detalle de workouts existentes en Garmin Connect.
 - [ ] Conversión al formato de Garmin y creación del workout.
 - [ ] Programación del workout en una fecha.
 

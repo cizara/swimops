@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
+from garminconnect import Garmin
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
 
 
@@ -105,6 +106,104 @@ def _swim_steps(steps: list[WorkoutStep] | list[BasicStep]):
 
 def load_workout(path: Path) -> SwimWorkout:
     return SwimWorkout.model_validate_json(path.read_text(encoding="utf-8"))
+
+
+def list_garmin_workouts(client: Garmin, limit: int) -> list[dict[str, Any]]:
+    if limit < 1:
+        raise ValueError("el límite debe ser mayor que cero")
+    return [_workout_summary(workout) for workout in client.get_workouts(0, limit)]
+
+
+def get_garmin_workout(client: Garmin, workout_id: int) -> dict[str, Any]:
+    workout = client.get_workout_by_id(workout_id)
+    return {
+        **_workout_summary(workout),
+        "description": workout.get("description"),
+        "created_at": workout.get("createdDate"),
+        "segments": [
+            {
+                "segment_order": segment.get("segmentOrder"),
+                "steps": [
+                    _garmin_step(step) for step in segment.get("workoutSteps") or []
+                ],
+            }
+            for segment in workout.get("workoutSegments") or []
+        ],
+    }
+
+
+def format_garmin_workouts(workouts: list[dict[str, Any]]) -> str:
+    lines = ["ID\tDEPORTE\tDISTANCIA_M\tPISCINA_M\tNOMBRE"]
+    for workout in workouts:
+        values = (
+            workout["workout_id"],
+            workout["sport"],
+            _display_number(workout["distance_m"]),
+            _display_number(workout["pool_length_m"]),
+            str(workout["name"]).replace("\t", " ").replace("\n", " "),
+        )
+        lines.append("\t".join(map(str, values)))
+    return "\n".join(lines)
+
+
+def _workout_summary(workout: dict[str, Any]) -> dict[str, Any]:
+    sport = workout.get("sportType") or {}
+    return {
+        "workout_id": workout.get("workoutId"),
+        "name": workout.get("workoutName"),
+        "sport": sport.get("sportTypeKey"),
+        "distance_m": workout.get("estimatedDistanceInMeters"),
+        "duration_s": workout.get("estimatedDurationInSecs"),
+        "pool_length_m": workout.get("poolLength"),
+        "updated_at": workout.get("updateDate"),
+    }
+
+
+def _garmin_step(step: dict[str, Any]) -> dict[str, Any]:
+    if step.get("type") == "RepeatGroupDTO" or "numberOfIterations" in step:
+        return {
+            "order": step.get("stepOrder"),
+            "type": "repeat",
+            "repeat": step.get("numberOfIterations"),
+            "steps": [_garmin_step(child) for child in step.get("workoutSteps") or []],
+        }
+
+    result = {
+        "order": step.get("stepOrder"),
+        "type": (step.get("stepType") or {}).get("stepTypeKey"),
+    }
+    condition = (step.get("endCondition") or {}).get("conditionTypeKey")
+    value = step.get("endConditionValue")
+    if condition == "distance":
+        result["distance_m"] = value
+    elif condition == "time":
+        result["duration_s"] = value
+    elif condition:
+        result["end_condition"] = condition
+
+    optional = {
+        "description": step.get("description"),
+        "stroke": (step.get("strokeType") or {}).get("strokeTypeKey"),
+        "equipment": (step.get("equipmentType") or {}).get("equipmentTypeKey"),
+        "drill": (step.get("drillType") or {}).get("drillTypeKey"),
+    }
+    result.update({key: item for key, item in optional.items() if item})
+
+    target = (step.get("targetType") or {}).get("workoutTargetTypeKey")
+    if target and target != "no.target":
+        result["target"] = {
+            "type": target,
+            "value_one": step.get("targetValueOne"),
+            "value_two": step.get("targetValueTwo"),
+            "unit": (step.get("targetValueUnit") or {}).get("unitKey"),
+        }
+    return result
+
+
+def _display_number(value: Any) -> str:
+    if not isinstance(value, int | float):
+        return ""
+    return f"{value:g}"
 
 
 def workout_preview(workout: SwimWorkout) -> dict[str, Any]:

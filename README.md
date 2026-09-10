@@ -104,6 +104,15 @@ El formato admite calentamiento, nado, descansos, repeticiones y vuelta a la cal
 
 El MCP expone también `preview_swim_workout`. Esta herramienta sólo valida y presenta la propuesta; no contacta Garmin ni crea workouts.
 
+Los workouts existentes pueden consultarse sin modificarlos:
+
+```bash
+uv run garmin workouts
+uv run garmin workout 1675490181
+```
+
+El MCP ofrece las mismas consultas mediante `list_workouts` y `get_workout`. Estas dos herramientas leen Garmin Connect usando la sesión local guardada.
+
 Para elegir otro directorio de tokens, siempre fuera del repositorio:
 
 ```bash
