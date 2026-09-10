@@ -90,11 +90,17 @@ def _comparison(frame: pd.DataFrame, sessions: list[dict], name_by_key: dict[str
             {
                 "Rutina": name_by_key[key],
                 "Sesiones": summary["sessions"],
-                "Distancia total (m)": summary["distance_m"],
+                "Distancia total (m)": round(summary["distance_m"]),
                 "Ritmo": _pace(summary["avg_pace_100m_s"]),
-                "SWOLF": summary["avg_swolf"],
-                "Brazadas/largo": summary["avg_strokes_per_length"],
-                "FC media": summary["avg_hr"],
+                "SWOLF": round(summary["avg_swolf"], 1)
+                if summary["avg_swolf"] is not None
+                else None,
+                "Brazadas/largo": round(summary["avg_strokes_per_length"], 1)
+                if summary["avg_strokes_per_length"] is not None
+                else None,
+                "FC media": round(summary["avg_hr"])
+                if summary["avg_hr"] is not None
+                else None,
             }
         )
     st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
@@ -171,6 +177,16 @@ def main() -> None:
     summary = summarize_sessions(sessions)
     frame = pd.DataFrame(sessions)
     frame["date"] = pd.to_datetime(frame["date"])
+    frame = frame.round(
+        {
+            "distance_m": 0,
+            "avg_pace_100m_s": 0,
+            "avg_swolf": 1,
+            "avg_strokes_per_length": 1,
+            "avg_hr": 0,
+            "max_hr": 0,
+        }
+    )
     name_by_key = {item["key"]: item["name"] for item in routines}
     frame["Rutina"] = frame["routine"].map(name_by_key)
 
@@ -201,6 +217,8 @@ def main() -> None:
         ]
     ].copy()
     table["date"] = table["date"].dt.date
+    table["distance_m"] = table["distance_m"].astype("Int64")
+    table["avg_hr"] = table["avg_hr"].astype("Int64")
     table["swim_time_s"] = table["swim_time_s"].map(_duration)
     table["avg_pace_100m_s"] = table["avg_pace_100m_s"].map(_pace)
     table.columns = [
