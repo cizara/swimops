@@ -11,6 +11,7 @@ from swimops.auth import load_session
 from swimops.queries import GarminHistory
 from swimops.workouts import (
     SwimWorkout,
+    create_garmin_swim_workout,
     get_garmin_workout,
     list_garmin_workouts,
     workout_preview,
@@ -32,6 +33,12 @@ READ_ONLY = ToolAnnotations(
     destructiveHint=False,
     idempotentHint=True,
     openWorldHint=False,
+)
+WRITE = ToolAnnotations(
+    readOnlyHint=False,
+    destructiveHint=False,
+    idempotentHint=False,
+    openWorldHint=True,
 )
 
 
@@ -89,6 +96,18 @@ async def list_workouts(limit: int = 20) -> list[dict[str, Any]]:
 async def get_workout(workout_id: int) -> dict[str, Any]:
     """Devuelve el detalle y los segmentos de un workout de Garmin Connect."""
     return get_garmin_workout(load_session(), workout_id)
+
+
+@mcp.tool(annotations=WRITE)
+async def create_swim_workout(
+    workout: dict[str, Any], confirmed: bool = False
+) -> dict[str, Any]:
+    """Crea una rutina en Garmin sólo después de mostrarla y recibir aprobación explícita."""
+    if not confirmed:
+        raise ValueError("falta aprobación explícita de la vista previa")
+    return create_garmin_swim_workout(
+        load_session(), SwimWorkout.model_validate(workout)
+    )
 
 
 def main() -> None:

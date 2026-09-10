@@ -18,6 +18,7 @@ from swimops.auth import SessionNotFoundError, load_session, login, token_store_
 from swimops.processing import parse_swims
 from swimops.sync import sync_activities
 from swimops.workouts import (
+    create_garmin_swim_workout,
     format_garmin_workouts,
     get_garmin_workout,
     list_garmin_workouts,
@@ -64,6 +65,11 @@ def build_parser() -> argparse.ArgumentParser:
     workouts.add_argument("--limit", type=positive_int, default=20)
     workout = commands.add_parser("workout", help="muestra el detalle de un workout")
     workout.add_argument("workout_id", type=positive_int)
+    create = commands.add_parser(
+        "workout-create", help="crea en Garmin una rutina previamente revisada"
+    )
+    create.add_argument("file", type=Path)
+    create.add_argument("--confirm", action="store_true", help="confirma la creación")
     return parser
 
 
@@ -85,6 +91,21 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         if args.command == "workout-preview":
             print(workout_preview(load_workout(args.file))["text"])
+            return 0
+
+        if args.command == "workout-create":
+            workout = load_workout(args.file)
+            if not args.confirm:
+                raise ValueError(
+                    "revisa la rutina con `garmin workout-preview` y usa --confirm"
+                )
+            print(
+                json.dumps(
+                    create_garmin_swim_workout(load_session(), workout),
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
             return 0
 
         client = load_session()

@@ -41,8 +41,15 @@ def test_exposes_read_only_history_tools(
             "preview_swim_workout",
             "list_workouts",
             "get_workout",
+            "create_swim_workout",
         }
-        assert all(tool.annotations.read_only_hint for tool in tools.tools)
+        annotations = {tool.name: tool.annotations for tool in tools.tools}
+        assert annotations["create_swim_workout"].read_only_hint is False
+        assert all(
+            annotation.read_only_hint
+            for name, annotation in annotations.items()
+            if name != "create_swim_workout"
+        )
         assert result.structured_content == {
             "result": [
                 {
@@ -73,12 +80,38 @@ def test_exposes_remote_workouts_without_writes(
                 }
             ]
 
+        def upload_workout(self, payload):
+            return {"workoutId": 456, "workoutName": payload["workoutName"]}
+
     monkeypatch.setattr(mcp_server, "load_session", GarminClient)
 
     async def check_server() -> None:
         async with Client(mcp, mode="legacy") as client:
             result = await client.call_tool("list_workouts", {"limit": 5})
+            created = await client.call_tool(
+                "create_swim_workout",
+                {
+                    "workout": {
+                        "name": "Suave",
+                        "pool_length_m": 25,
+                        "steps": [{"type": "swim", "distance_m": 500}],
+                    },
+                    "confirmed": True,
+                },
+            )
+            rejected = await client.call_tool(
+                "create_swim_workout",
+                {
+                    "workout": {
+                        "name": "Sin aprobar",
+                        "pool_length_m": 25,
+                        "steps": [{"type": "swim", "distance_m": 500}],
+                    }
+                },
+            )
 
         assert result.structured_content["result"][0]["workout_id"] == 123
+        assert created.structured_content["workout_id"] == 456
+        assert rejected.is_error
 
     asyncio.run(check_server())

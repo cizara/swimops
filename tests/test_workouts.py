@@ -3,9 +3,11 @@ from pydantic import ValidationError
 
 from swimops.workouts import (
     SwimWorkout,
+    create_garmin_swim_workout,
     format_garmin_workouts,
     get_garmin_workout,
     list_garmin_workouts,
+    to_garmin_workout,
     workout_preview,
 )
 
@@ -23,7 +25,7 @@ WORKOUT = {
                     "type": "swim",
                     "distance_m": 100,
                     "stroke": "freestyle",
-                    "target": {"type": "pace", "min": "1:42", "max": "1:48"},
+                    "target": {"type": "pace", "pace": "1:45"},
                 },
                 {"type": "rest", "duration_s": 20},
             ],
@@ -37,9 +39,9 @@ def test_validates_and_previews_workout() -> None:
     preview = workout_preview(SwimWorkout.model_validate(WORKOUT))
 
     assert preview["total_distance_m"] == 1500
-    assert preview["total_rest_s"] == 160
+    assert preview["total_rest_s"] == 140
     assert "2. Repetir 8 veces:" in preview["text"]
-    assert "ritmo 1:42–1:48/100 m" in preview["text"]
+    assert "ritmo 1:45/100 m" in preview["text"]
 
 
 def test_rejects_distance_that_does_not_match_pool() -> None:
@@ -49,20 +51,63 @@ def test_rejects_distance_that_does_not_match_pool() -> None:
         SwimWorkout.model_validate(workout)
 
 
-def test_rejects_invalid_pace_range() -> None:
+def test_rejects_invalid_pace() -> None:
     workout = {
         **WORKOUT,
         "steps": [
             {
                 "type": "swim",
                 "distance_m": 100,
-                "target": {"type": "pace", "min": "1:50", "max": "1:40"},
+                "target": {"type": "pace", "pace": "1:75"},
             }
         ],
     }
 
-    with pytest.raises(ValidationError, match="ritmo mínimo"):
+    with pytest.raises(ValidationError, match="formato M:SS"):
         SwimWorkout.model_validate(workout)
+
+
+def test_converts_workout_to_garmin_payload() -> None:
+    payload = to_garmin_workout(SwimWorkout.model_validate(WORKOUT))
+    steps = payload["workoutSegments"][0]["workoutSteps"]
+    repeated = steps[1]
+    swim, rest = repeated["workoutSteps"]
+
+    assert payload["estimatedDistanceInMeters"] == 1500
+    assert payload["poolLength"] == 25
+    assert [step["stepOrder"] for step in steps] == [1, 2, 5]
+    assert repeated["numberOfIterations"] == 8
+    assert repeated["skipLastRestStep"] is True
+    assert swim["stepOrder"] == 3
+    assert swim["strokeType"]["strokeTypeKey"] == "free"
+    assert swim["secondaryTargetType"]["workoutTargetTypeKey"] == "pace.zone"
+    assert swim["secondaryTargetValueOne"] == pytest.approx(100 / 105)
+    assert rest["stepOrder"] == 4
+    assert rest["endCondition"]["conditionTypeKey"] == "fixed.rest"
+    assert rest["endConditionValue"] == 20
+
+
+def test_creates_workout_and_returns_compact_result() -> None:
+    class UploadClient:
+        payload = None
+
+        def upload_workout(self, payload):
+            self.payload = payload
+            return {"workoutId": 456, "workoutName": "CSS intervals"}
+
+    client = UploadClient()
+    result = create_garmin_swim_workout(
+        client, SwimWorkout.model_validate(WORKOUT)
+    )
+
+    assert client.payload["workoutName"] == "CSS intervals"
+    assert result == {
+        "workout_id": 456,
+        "name": "CSS intervals",
+        "sport": "swimming",
+        "distance_m": 1500,
+        "pool_length_m": 25,
+    }
 
 
 class GarminClient:

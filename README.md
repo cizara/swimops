@@ -100,7 +100,7 @@ Una rutina puede validarse y revisarse localmente antes de crearla en Garmin:
 uv run garmin workout-preview examples/swim-workout.json
 ```
 
-El formato admite calentamiento, nado, descansos, repeticiones y vuelta a la calma. La longitud de piscina forma parte de cada propuesta y todas las distancias deben ser múltiplos de ella. La vista previa muestra la distancia total y el descanso programado.
+El formato admite calentamiento, nado, descansos, repeticiones, vuelta a la calma, estilo, material, técnica, notas y un objetivo de ritmo único por bloque. La longitud de piscina forma parte de cada propuesta y todas las distancias deben ser múltiplos de ella. La vista previa muestra la distancia total y el descanso programado.
 
 El MCP expone también `preview_swim_workout`. Esta herramienta sólo valida y presenta la propuesta; no contacta Garmin ni crea workouts.
 
@@ -112,6 +112,14 @@ uv run garmin workout 1675490181
 ```
 
 El MCP ofrece las mismas consultas mediante `list_workouts` y `get_workout`. Estas dos herramientas leen Garmin Connect usando la sesión local guardada.
+
+Después de revisar la vista previa, la creación exige confirmación explícita:
+
+```bash
+uv run garmin workout-create examples/swim-workout.json --confirm
+```
+
+En MCP, `create_swim_workout` requiere `confirmed=true`. Debe usarse únicamente después de mostrar `preview_swim_workout` y recibir aprobación del usuario. La creación guarda el workout en Garmin Connect; no lo programa todavía.
 
 Para elegir otro directorio de tokens, siempre fuera del repositorio:
 

@@ -338,7 +338,8 @@ Estado:
 
 - [x] Schema propio, validación y vista previa local/MCP.
 - [x] Listado y detalle de workouts existentes en Garmin Connect.
-- [ ] Conversión al formato de Garmin y creación del workout.
+- [x] Conversión al formato de Garmin y creación con confirmación explícita.
+- [ ] Validación real con una rutina aprobada por el usuario.
 - [ ] Programación del workout en una fecha.
 
 Reutilizar la lógica de `goosegit97/garmin-mcp`.
@@ -368,8 +369,7 @@ Ejemplo:
           "stroke": "freestyle",
           "target": {
             "type": "pace",
-            "min": "1:42",
-            "max": "1:48"
+            "pace": "1:45"
           }
         },
         {

@@ -99,7 +99,7 @@ def test_workout_preview_does_not_load_garmin_session(
     path = tmp_path / "workout.json"
     path.write_text(
         '{"name":"Técnica","pool_length_m":25,'
-        '"steps":[{"type":"swim","distance_m":100,"stroke":"drill"}]}'
+        '"steps":[{"type":"swim","distance_m":100,"drill":"drill"}]}'
     )
     monkeypatch.setattr(cli, "load_session", lambda: pytest.fail("unexpected login"))
 
@@ -130,3 +130,47 @@ def test_workouts_lists_remote_workouts(
 
     assert cli.main(["workouts", "--limit", "5"]) == 0
     assert "123\tswimming\t1500\t25\tDía A" in capsys.readouterr().out
+
+
+def test_workout_create_requires_confirmation_before_login(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "workout.json"
+    path.write_text(
+        '{"name":"Suave","pool_length_m":25,'
+        '"steps":[{"type":"swim","distance_m":500}]}'
+    )
+    monkeypatch.setattr(cli, "load_session", lambda: pytest.fail("unexpected login"))
+
+    assert cli.main(["workout-create", str(path)]) == 1
+    assert "usa --confirm" in capsys.readouterr().err
+
+
+def test_workout_create_uploads_confirmed_workout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = tmp_path / "workout.json"
+    path.write_text(
+        '{"name":"Suave","pool_length_m":25,'
+        '"steps":[{"type":"swim","distance_m":500}]}'
+    )
+    client = object()
+    monkeypatch.setattr(cli, "load_session", lambda: client)
+    monkeypatch.setattr(
+        cli,
+        "create_garmin_swim_workout",
+        lambda received, workout: {
+            "workout_id": 456,
+            "name": workout.name,
+            "sport": "swimming",
+            "distance_m": 500,
+            "pool_length_m": 25,
+        },
+    )
+
+    assert cli.main(["workout-create", str(path), "--confirm"]) == 0
+    assert '"workout_id": 456' in capsys.readouterr().out

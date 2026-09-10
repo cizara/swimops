@@ -18,8 +18,7 @@
           "stroke": "freestyle",
           "target": {
             "type": "pace",
-            "min": "1:42",
-            "max": "1:48"
+            "pace": "1:45"
           }
         },
         {
