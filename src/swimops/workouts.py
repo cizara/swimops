@@ -83,6 +83,7 @@ class SwimWorkout(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     sport: Literal["swimming"] = "swimming"
     pool_length_m: PositiveInt
+    auto_rest_between_steps: bool = True
     steps: list[WorkoutStep] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -142,6 +143,9 @@ def get_garmin_workout(client: Garmin, workout_id: int) -> dict[str, Any]:
 def to_garmin_workout(workout: SwimWorkout) -> dict[str, Any]:
     sport = {"sportTypeId": 4, "sportTypeKey": "swimming", "displayOrder": 3}
     order = 1
+    steps = _with_default_rests(
+        workout.steps, enabled=workout.auto_rest_between_steps
+    )
 
     def convert(step: WorkoutStep | BasicStep) -> dict[str, Any]:
         nonlocal order
@@ -184,7 +188,7 @@ def to_garmin_workout(workout: SwimWorkout) -> dict[str, Any]:
             {
                 "segmentOrder": 1,
                 "sportType": sport,
-                "workoutSteps": [convert(step) for step in workout.steps],
+                "workoutSteps": [convert(step) for step in steps],
             }
         ],
     }
@@ -407,24 +411,47 @@ def _display_number(value: Any) -> str:
 
 
 def workout_preview(workout: SwimWorkout) -> dict[str, Any]:
+    steps = _with_default_rests(
+        workout.steps, enabled=workout.auto_rest_between_steps
+    )
     lines = [
         workout.name,
         f"Piscina: {workout.pool_length_m} m",
         f"Distancia total: {_distance(workout.steps)} m",
     ]
-    rest = _rest_seconds(workout.steps)
+    rest = _rest_seconds(steps)
     if rest:
-        lines.append(f"Descanso programado: {_duration(rest)}")
+        lines.append(f"Descanso temporizado: {_duration(rest)}")
     lines.append("")
-    for index, step in enumerate(workout.steps, 1):
+    for index, step in enumerate(steps, 1):
         lines.extend(_render_step(step, f"{index}. "))
     return {
         "name": workout.name,
         "pool_length_m": workout.pool_length_m,
         "total_distance_m": _distance(workout.steps),
         "total_rest_s": rest,
+        "manual_rests": sum(
+            isinstance(step, RestStep) and step.duration_s is None for step in steps
+        ),
         "text": "\n".join(lines),
     }
+
+
+def _with_default_rests(
+    steps: list[WorkoutStep], enabled: bool
+) -> list[WorkoutStep]:
+    if not enabled:
+        return list(steps)
+    result: list[WorkoutStep] = []
+    for step in steps:
+        if (
+            result
+            and not isinstance(result[-1], RestStep)
+            and not isinstance(step, RestStep)
+        ):
+            result.append(RestStep(type="rest"))
+        result.append(step)
+    return result
 
 
 def _distance(steps: list[WorkoutStep] | list[BasicStep]) -> int:

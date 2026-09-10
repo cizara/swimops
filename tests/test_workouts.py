@@ -25,6 +25,7 @@ WORKOUT = {
                     "type": "swim",
                     "distance_m": 100,
                     "stroke": "freestyle",
+                    "equipment": "paddles",
                     "target": {"type": "pace", "pace": "1:45"},
                 },
                 {"type": "rest", "duration_s": 20},
@@ -40,8 +41,11 @@ def test_validates_and_previews_workout() -> None:
 
     assert preview["total_distance_m"] == 1500
     assert preview["total_rest_s"] == 140
-    assert "2. Repetir 8 veces:" in preview["text"]
+    assert preview["manual_rests"] == 2
+    assert preview["text"].count("Descanso — hasta botón Lap") == 2
+    assert "3. Repetir 8 veces:" in preview["text"]
     assert "ritmo 1:45/100 m" in preview["text"]
+    assert "equipo: paddles" in preview["text"]
 
 
 def test_rejects_distance_that_does_not_match_pool() -> None:
@@ -70,21 +74,65 @@ def test_rejects_invalid_pace() -> None:
 def test_converts_workout_to_garmin_payload() -> None:
     payload = to_garmin_workout(SwimWorkout.model_validate(WORKOUT))
     steps = payload["workoutSegments"][0]["workoutSteps"]
-    repeated = steps[1]
+    repeated = steps[2]
     swim, rest = repeated["workoutSteps"]
 
     assert payload["estimatedDistanceInMeters"] == 1500
     assert payload["poolLength"] == 25
-    assert [step["stepOrder"] for step in steps] == [1, 2, 5]
+    assert [step["stepOrder"] for step in steps] == [1, 2, 3, 6, 7]
+    assert steps[1]["endCondition"]["conditionTypeKey"] == "lap.button"
+    assert steps[3]["endCondition"]["conditionTypeKey"] == "lap.button"
     assert repeated["numberOfIterations"] == 8
     assert repeated["skipLastRestStep"] is True
-    assert swim["stepOrder"] == 3
+    assert swim["stepOrder"] == 4
     assert swim["strokeType"]["strokeTypeKey"] == "free"
+    assert swim["equipmentType"]["equipmentTypeKey"] == "paddles"
     assert swim["secondaryTargetType"]["workoutTargetTypeKey"] == "pace.zone"
     assert swim["secondaryTargetValueOne"] == pytest.approx(100 / 105)
-    assert rest["stepOrder"] == 4
+    assert rest["stepOrder"] == 5
     assert rest["endCondition"]["conditionTypeKey"] == "fixed.rest"
     assert rest["endConditionValue"] == 20
+
+
+def test_can_disable_default_rests() -> None:
+    workout = SwimWorkout.model_validate(
+        {**WORKOUT, "auto_rest_between_steps": False}
+    )
+
+    preview = workout_preview(workout)
+    payload = to_garmin_workout(workout)
+
+    assert preview["manual_rests"] == 0
+    assert [
+        step["stepType"]["stepTypeKey"]
+        for step in payload["workoutSegments"][0]["workoutSteps"]
+    ] == ["warmup", "repeat", "cooldown"]
+
+
+@pytest.mark.parametrize(
+    ("equipment", "garmin_key"),
+    [
+        ("paddles", "paddles"),
+        ("fins", "fins"),
+        ("pull_buoy", "pull_buoy"),
+        ("kickboard", "kickboard"),
+        ("snorkel", "snorkel"),
+    ],
+)
+def test_maps_available_equipment(equipment: str, garmin_key: str) -> None:
+    workout = SwimWorkout.model_validate(
+        {
+            "name": "Material",
+            "pool_length_m": 25,
+            "steps": [
+                {"type": "swim", "distance_m": 100, "equipment": equipment}
+            ],
+        }
+    )
+
+    step = to_garmin_workout(workout)["workoutSegments"][0]["workoutSteps"][0]
+
+    assert step["equipmentType"]["equipmentTypeKey"] == garmin_key
 
 
 def test_creates_workout_and_returns_compact_result() -> None:

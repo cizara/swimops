@@ -45,12 +45,12 @@ Terminado cuando se pueda usar mediante los comandos documentados, sin pasos man
 
 - Reconciliación de cambios posteriores en Garmin Connect.
 - Parser y métricas de natación: se definirán con archivos reales.
-- MCP, análisis mediante agentes, creación/programación de rutinas y gráficos.
+- MCP, análisis mediante agentes, creación de rutinas y gráficos.
 - Validación de workouts en el reloj y evaluación del repositorio de referencia para crearlos.
 
 ## Contexto para las siguientes etapas
 
 - Usuario inicial: Forerunner 570 de 47 mm, piscina de 25 m y uso habitual de rutinas en el reloj.
 - Modelo de reloj y longitud de piscina deberán ser configurables cuando sean necesarios, sin valores fijos en el código.
-- El agente deberá presentar la rutina y consensuarla con el usuario antes de crearla y programarla en Garmin.
+- El agente deberá presentar la rutina y consensuarla con el usuario antes de crearla en Garmin.
 - El objetivo más amplio se conserva en `garmin-swim-agent-plan.md`; este documento delimita la primera entrega.

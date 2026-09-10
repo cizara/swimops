@@ -100,7 +100,9 @@ Una rutina puede validarse y revisarse localmente antes de crearla en Garmin:
 uv run garmin workout-preview examples/swim-workout.json
 ```
 
-El formato admite calentamiento, nado, descansos, repeticiones, vuelta a la calma, estilo, material, técnica, notas y un objetivo de ritmo único por bloque. La longitud de piscina forma parte de cada propuesta y todas las distancias deben ser múltiplos de ella. La vista previa muestra la distancia total y el descanso programado.
+El formato admite calentamiento, nado, descansos, repeticiones, vuelta a la calma, estilo, material, técnica, notas y un objetivo de ritmo único por bloque. Los materiales admitidos son `paddles`, `fins`, `pull_buoy`, `kickboard` y `snorkel`. La longitud de piscina forma parte de cada propuesta y todas las distancias deben ser múltiplos de ella.
+
+El builder agrega automáticamente un descanso sin límite de tiempo entre bloques principales, para permitir preparar o cambiar material y continuar con el botón Lap. Los descansos dentro de repeticiones o con una duración concreta se declaran explícitamente con `duration_s`. Una rutina puede desactivar el comportamiento automático con `"auto_rest_between_steps": false`.
 
 El MCP expone también `preview_swim_workout`. Esta herramienta sólo valida y presenta la propuesta; no contacta Garmin ni crea workouts.
 
@@ -119,7 +121,7 @@ Después de revisar la vista previa, la creación exige confirmación explícita
 uv run garmin workout-create examples/swim-workout.json --confirm
 ```
 
-En MCP, `create_swim_workout` requiere `confirmed=true`. Debe usarse únicamente después de mostrar `preview_swim_workout` y recibir aprobación del usuario. La creación guarda el workout en Garmin Connect; no lo programa todavía.
+En MCP, `create_swim_workout` requiere `confirmed=true`. Debe usarse únicamente después de mostrar `preview_swim_workout` y recibir aprobación del usuario. La creación guarda el workout en Garmin Connect.
 
 Para elegir otro directorio de tokens, siempre fuera del repositorio:
 

@@ -9,7 +9,7 @@ Construir una herramienta personal que permita:
 3. Mantener los archivos FIT originales como fuente de verdad.
 4. Generar resúmenes estructurados para consultas y análisis con agentes.
 5. Crear rutinas nuevas de natación mediante un agente.
-6. Subir y programar esas rutinas en Garmin Connect para que lleguen al reloj.
+6. Subir esas rutinas a Garmin Connect.
 
 El MVP se centrará en **natación**. Fútbol podrá reutilizar la misma infraestructura más adelante.
 
@@ -17,7 +17,7 @@ El MVP se centrará en **natación**. Fútbol podrá reutilizar la misma infraes
 
 ## Enfoque elegido
 
-Tomar `goosegit97/garmin-mcp` como referencia/base para la parte de creación y programación de workouts de natación.
+Tomar `goosegit97/garmin-mcp` como referencia/base para la creación de workouts de natación.
 
 Completarlo con una capa propia para:
 
@@ -340,7 +340,6 @@ Estado:
 - [x] Listado y detalle de workouts existentes en Garmin Connect.
 - [x] Conversión al formato de Garmin y creación con confirmación explícita.
 - [x] Validación real con una rutina aprobada por el usuario.
-- [ ] Programación del workout en una fecha.
 
 Reutilizar la lógica de `goosegit97/garmin-mcp`.
 
@@ -367,6 +366,7 @@ Ejemplo:
           "type": "swim",
           "distance_m": 100,
           "stroke": "freestyle",
+          "equipment": "paddles",
           "target": {
             "type": "pace",
             "pace": "1:45"
@@ -385,6 +385,10 @@ Ejemplo:
   ]
 }
 ```
+
+El material se configura por bloque. Valores admitidos: `paddles`, `fins`, `pull_buoy`, `kickboard` y `snorkel`.
+
+El builder agrega por defecto un descanso sin tiempo fijo entre bloques principales cuando no se especifica uno. Puede desactivarse con `auto_rest_between_steps: false`. Dentro de repeticiones, el descanso debe declararse explícitamente y puede tener una duración fija.
 
 Pipeline:
 
@@ -409,12 +413,6 @@ Garmin watch
 ### `create_swim_workout`
 
 Crea el workout en Garmin Connect.
-
----
-
-### `schedule_workout`
-
-Asigna el workout a una fecha.
 
 ---
 
@@ -453,12 +451,6 @@ Por ejemplo:
 
 ```text
 get_training_history(days=30)
-```
-
-y eventualmente:
-
-```text
-get_upcoming_workouts()
 ```
 
 El agente podrá considerar:
@@ -612,7 +604,6 @@ MCP write:
 
 ```text
 create_swim_workout
-schedule_workout
 ```
 
 Ya permite:
@@ -760,9 +751,7 @@ El MVP está terminado cuando se pueda hacer lo siguiente:
 
 9. Lo crea en Garmin Connect.
 
-10. Lo programa para mañana.
-
-11. Garmin lo sincroniza con el reloj.
+10. El workout queda disponible en Garmin Connect.
 ```
 
 Ese flujo constituye el objetivo principal del proyecto.
