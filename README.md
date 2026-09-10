@@ -94,6 +94,16 @@ Otro usuario sólo necesita cambiar ambas rutas. El host inicia el MCP automáti
 
 Además de las consultas, el MCP expone `get_auth_status`, `sync_activities` y `get_sync_status`. `sync_activities` descarga el rango indicado y procesa las sesiones de piscina. Si falta una sesión válida, devuelve una instrucción para ejecutar `uv run garmin login` localmente; el MCP nunca solicita usuario, contraseña ni MFA.
 
+## Reportes
+
+La aplicación local lee el mismo SQLite y permite filtrar sesiones por fecha y rutina, excluir calentamiento y vuelta a la calma, y consultar volumen, ritmo, SWOLF, brazadas y frecuencia cardíaca:
+
+```bash
+uv run streamlit run src/swimops/report_app.py
+```
+
+Abre `http://localhost:8501` y no modifica los datos.
+
 ## Propuestas de workouts
 
 Una rutina puede validarse y revisarse localmente antes de crearla en Garmin:

@@ -9,6 +9,7 @@ dependencies = [
     "garminconnect>=0.3.11,<0.4",
     "mcp>=2,<3",
     "pydantic>=2,<3",
+    "streamlit>=1.40,<2",
 ]
 
 [project.scripts]

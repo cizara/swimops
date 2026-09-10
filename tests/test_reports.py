@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from swimops.reports import SwimReports, routine_key
+from swimops.reports import SwimReports, routine_key, summarize_sessions
 from swimops.repository import Activity, ActivityRepository
 from swimops.swimming import ParsedSwim, SwimLap, SwimSession
 
@@ -73,3 +73,12 @@ def test_excludes_first_and_last_workout_blocks(reports: SwimReports) -> None:
 def test_rejects_inverted_range(reports: SwimReports) -> None:
     with pytest.raises(ValueError, match="from_date"):
         reports.sessions("2026-09-02", "2026-09-01")
+
+
+def test_summarizes_sessions_with_weighted_metrics(reports: SwimReports) -> None:
+    sessions = reports.sessions("2026-09-01", "2026-09-30", ["dia a"])
+    summary = summarize_sessions(sessions)
+
+    assert summary["sessions"] == 2
+    assert summary["distance_m"] == 1400
+    assert summary["avg_pace_100m_s"] == pytest.approx(790 / 7)

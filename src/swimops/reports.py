@@ -14,6 +14,36 @@ def routine_key(name: str) -> str:
     return " ".join(plain.casefold().split())
 
 
+def summarize_sessions(sessions: list[dict[str, Any]]) -> dict[str, Any]:
+    distance = sum(session["distance_m"] or 0 for session in sessions)
+    swim_time = sum(session["swim_time_s"] or 0 for session in sessions)
+    elapsed_time = sum(session["elapsed_time_s"] or 0 for session in sessions)
+
+    def weighted(field: str, weight: str) -> float | None:
+        rows = [
+            session
+            for session in sessions
+            if session[field] is not None and (session[weight] or 0) > 0
+        ]
+        total_weight = sum(session[weight] for session in rows)
+        if not total_weight:
+            return None
+        return sum(session[field] * session[weight] for session in rows) / total_weight
+
+    return {
+        "sessions": len(sessions),
+        "distance_m": distance,
+        "swim_time_s": swim_time,
+        "elapsed_time_s": elapsed_time,
+        "avg_pace_100m_s": swim_time * 100 / distance if distance else None,
+        "avg_swolf": weighted("avg_swolf", "distance_m"),
+        "avg_strokes_per_length": weighted(
+            "avg_strokes_per_length", "distance_m"
+        ),
+        "avg_hr": weighted("avg_hr", "swim_time_s"),
+    }
+
+
 class SwimReports:
     def __init__(self, database_path: str | Path) -> None:
         self.database_path = Path(database_path)
