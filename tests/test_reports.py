@@ -41,6 +41,17 @@ def reports(tmp_path: Path) -> SwimReports:
         add_session(repository, 1, "Dia A: Técnica", "2026-09-01 10:00:00")
         add_session(repository, 2, "Día A: Técnica", "2026-09-08 10:00:00")
         add_session(repository, 3, "Día B: Potencia", "2026-09-09 10:00:00")
+        repository.register(
+            Activity(
+                4,
+                "2026-09-07 18:00:00",
+                "soccer",
+                "Partido",
+                Path("soccer.fit"),
+                4200,
+                3600,
+            )
+        )
     return SwimReports(database)
 
 
@@ -59,6 +70,21 @@ def test_filters_sessions_by_routine(reports: SwimReports) -> None:
 
     assert [session["activity_id"] for session in sessions] == [1, 2]
     assert sessions[0]["distance_m"] == 700
+
+
+def test_lists_all_sports_for_general_reports(
+    reports: SwimReports,
+) -> None:
+    activities = reports.activities("2026-09-01", "2026-09-30")
+
+    assert len(activities) == 4
+    assert {activity["sport"] for activity in activities} == {
+        "lap_swimming",
+        "soccer",
+    }
+    soccer = next(activity for activity in activities if activity["sport"] == "soccer")
+    assert soccer["distance_m"] == 4200
+    assert soccer["duration_s"] == 3600
 
 
 def test_excludes_first_and_last_workout_blocks(reports: SwimReports) -> None:

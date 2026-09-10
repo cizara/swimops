@@ -44,6 +44,7 @@ def sync_activities(
                 registered = repository.is_registered(activity.garmin_id)
 
                 if registered and destination.is_file():
+                    repository.register(activity)
                     existing += 1
                     continue
 
@@ -62,6 +63,8 @@ def sync_activities(
                         sport=activity.sport,
                         name=activity.name,
                         fit_path=downloaded_path,
+                        distance_m=activity.distance_m,
+                        duration_s=activity.duration_s,
                     )
                 )
                 downloaded += 1
@@ -102,6 +105,15 @@ def _activity_from_api(
             sport=str(sport),
             name=str(raw_activity.get("activityName") or ""),
             fit_path=destination,
+            distance_m=_optional_float(raw_activity.get("distance")),
+            duration_s=_optional_float(raw_activity.get("duration")),
         ),
         activity_date,
     )
+
+
+def _optional_float(value: Any) -> float | None:
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None

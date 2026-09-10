@@ -19,6 +19,8 @@ class Activity:
     sport: str
     name: str
     fit_path: Path
+    distance_m: float | None = None
+    duration_s: float | None = None
 
 
 class ActivityRepository:
@@ -69,12 +71,20 @@ class ActivityRepository:
         La inserción es atómica: un fallo no deja un registro parcial y permite
         que una sincronización posterior vuelva a intentar esa actividad.
         """
+        exists = self.is_registered(activity.garmin_id)
         with self._connection:
-            result = self._connection.execute(
+            self._connection.execute(
                 """
-                INSERT OR IGNORE INTO activities
-                    (garmin_id, activity_date, sport, name, fit_path)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO activities
+                    (garmin_id, activity_date, sport, name, fit_path, distance_m, duration_s)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(garmin_id) DO UPDATE SET
+                    activity_date = excluded.activity_date,
+                    sport = excluded.sport,
+                    name = excluded.name,
+                    fit_path = excluded.fit_path,
+                    distance_m = COALESCE(excluded.distance_m, activities.distance_m),
+                    duration_s = COALESCE(excluded.duration_s, activities.duration_s)
                 """,
                 (
                     activity.garmin_id,
@@ -82,9 +92,11 @@ class ActivityRepository:
                     activity.sport,
                     activity.name,
                     str(activity.fit_path),
+                    activity.distance_m,
+                    activity.duration_s,
                 ),
             )
-        return result.rowcount == 1
+        return not exists
 
     def record_sync(
         self,
@@ -199,6 +211,14 @@ class ActivityRepository:
                 )
                 """
             )
+            columns = {
+                row[1]
+                for row in self._connection.execute("PRAGMA table_info(activities)")
+            }
+            if "distance_m" not in columns:
+                self._connection.execute("ALTER TABLE activities ADD COLUMN distance_m REAL")
+            if "duration_s" not in columns:
+                self._connection.execute("ALTER TABLE activities ADD COLUMN duration_s REAL")
             self._connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS swim_sessions (

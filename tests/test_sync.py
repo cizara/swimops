@@ -27,6 +27,8 @@ def api_activity(activity_id: int, timestamp: str = "2026-09-09 10:00:00") -> di
         "startTimeLocal": timestamp,
         "activityType": {"typeKey": "lap_swimming"},
         "activityName": f"Activity {activity_id}",
+        "distance": 1500,
+        "duration": 1800,
     }
 
 
@@ -95,6 +97,11 @@ def test_sync_skips_complete_activity(tmp_path: Path) -> None:
 
     assert summary == SyncSummary(existing=1)
     assert client.downloads == []
+    with ActivityRepository(tmp_path / "garmin.sqlite") as repository:
+        row = repository._connection.execute(
+            "SELECT distance_m, duration_s FROM activities WHERE garmin_id = 1"
+        ).fetchone()
+    assert row == (1500, 1800)
 
 
 def test_sync_registers_existing_fit_without_downloading(tmp_path: Path) -> None:

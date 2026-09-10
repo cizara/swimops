@@ -75,6 +75,25 @@ class SwimReports:
             routine["first_date"] = min(routine["first_date"], row["activity_date"])
         return sorted(routines.values(), key=lambda item: item["last_date"], reverse=True)
 
+    def activities(self, from_date: str, to_date: str) -> list[dict[str, Any]]:
+        start = _date(from_date)
+        end = _date(to_date)
+        if start > end:
+            raise ValueError("from_date no puede ser posterior a to_date")
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT garmin_id AS activity_id,
+                       substr(activity_date, 1, 10) AS date,
+                       sport, name, distance_m, duration_s
+                FROM activities
+                WHERE substr(activity_date, 1, 10) BETWEEN ? AND ?
+                ORDER BY activity_date
+                """,
+                (from_date, to_date),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def sessions(
         self,
         from_date: str,

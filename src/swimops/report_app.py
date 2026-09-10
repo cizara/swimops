@@ -24,6 +24,61 @@ def _pace(seconds: float | None) -> str:
     return f"{minutes}:{secs:02d}/100 m"
 
 
+def _sport_name(value: str) -> str:
+    return {
+        "lap_swimming": "Piscina",
+        "open_water_swimming": "Aguas abiertas",
+        "running": "Carrera",
+        "soccer": "Fútbol",
+    }.get(value, value.replace("_", " ").title())
+
+
+def _swim_metrics(summary: dict) -> None:
+    metrics = st.columns(6)
+    metrics[0].metric("Sesiones", summary["sessions"])
+    metrics[1].metric("Distancia", f"{summary['distance_m']:,.0f} m")
+    metrics[2].metric("Tiempo nadado", _duration(summary["swim_time_s"]))
+    metrics[3].metric("Ritmo", _pace(summary["avg_pace_100m_s"]))
+    metrics[4].metric(
+        "SWOLF", f"{summary['avg_swolf']:.1f}" if summary["avg_swolf"] else "—"
+    )
+    metrics[5].metric(
+        "Brazadas/largo",
+        f"{summary['avg_strokes_per_length']:.1f}"
+        if summary["avg_strokes_per_length"]
+        else "—",
+    )
+
+
+def _sports_overview(frame: pd.DataFrame) -> None:
+    st.subheader("Actividad por deporte")
+    for sport, group in frame.groupby("sport", sort=False):
+        columns = st.columns(3)
+        columns[0].metric(_sport_name(sport), len(group))
+        distance = group["distance_m"].sum(min_count=1)
+        duration = group["duration_s"].sum(min_count=1)
+        columns[1].metric(
+            "Distancia", f"{distance:,.0f} m" if pd.notna(distance) else "Sin datos"
+        )
+        columns[2].metric(
+            "Tiempo", _duration(duration) if pd.notna(duration) else "Sin datos"
+        )
+
+    volume = frame.dropna(subset=["distance_m"]).copy()
+    if volume.empty:
+        return
+    volume["Deporte"] = volume["sport"].map(_sport_name)
+    weekly = (
+        volume.groupby([pd.Grouper(key="date", freq="W-MON", label="left"), "Deporte"])[
+            "distance_m"
+        ]
+        .sum()
+        .reset_index()
+    )
+    st.subheader("Volumen semanal")
+    st.bar_chart(weekly, x="date", y="distance_m", color="Deporte")
+
+
 def _comparison(frame: pd.DataFrame, sessions: list[dict], name_by_key: dict[str, str]) -> None:
     st.subheader("Comparación por rutina")
     rows = []
@@ -56,15 +111,6 @@ def _comparison(frame: pd.DataFrame, sessions: list[dict], name_by_key: dict[str
 
 
 def _general(frame: pd.DataFrame) -> None:
-    st.subheader("Volumen semanal")
-    weekly = (
-        frame.set_index("date")["distance_m"]
-        .resample("W-MON", label="left")
-        .sum()
-        .rename("Distancia (m)")
-    )
-    st.bar_chart(weekly)
-
     left, right = st.columns(2)
     with left:
         st.subheader("Ritmo por sesión")
@@ -123,29 +169,22 @@ def main() -> None:
         return
 
     summary = summarize_sessions(sessions)
-    metrics = st.columns(6)
-    metrics[0].metric("Sesiones", summary["sessions"])
-    metrics[1].metric("Distancia", f"{summary['distance_m']:,.0f} m")
-    metrics[2].metric("Tiempo nadado", _duration(summary["swim_time_s"]))
-    metrics[3].metric("Ritmo", _pace(summary["avg_pace_100m_s"]))
-    metrics[4].metric(
-        "SWOLF", f"{summary['avg_swolf']:.1f}" if summary["avg_swolf"] else "—"
-    )
-    metrics[5].metric(
-        "Brazadas/largo",
-        f"{summary['avg_strokes_per_length']:.1f}"
-        if summary["avg_strokes_per_length"]
-        else "—",
-    )
-
     frame = pd.DataFrame(sessions)
     frame["date"] = pd.to_datetime(frame["date"])
     name_by_key = {item["key"]: item["name"] for item in routines}
     frame["Rutina"] = frame["routine"].map(name_by_key)
 
     if view == "Comparar rutinas":
+        _swim_metrics(summary)
         _comparison(frame, sessions, name_by_key)
     else:
+        activities = pd.DataFrame(
+            reports.activities(period[0].isoformat(), period[1].isoformat())
+        )
+        activities["date"] = pd.to_datetime(activities["date"])
+        _sports_overview(activities)
+        st.subheader("Detalle de natación en piscina")
+        _swim_metrics(summary)
         _general(frame)
 
     st.subheader("Sesiones")
