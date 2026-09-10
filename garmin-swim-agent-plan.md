@@ -339,7 +339,7 @@ Estado:
 - [x] Schema propio, validación y vista previa local/MCP.
 - [x] Listado y detalle de workouts existentes en Garmin Connect.
 - [x] Conversión al formato de Garmin y creación con confirmación explícita.
-- [ ] Validación real con una rutina aprobada por el usuario.
+- [x] Validación real con una rutina aprobada por el usuario.
 - [ ] Programación del workout en una fecha.
 
 Reutilizar la lógica de `goosegit97/garmin-mcp`.
