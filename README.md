@@ -61,9 +61,9 @@ Las sesiones procesadas se omiten en ejecuciones posteriores. Para recalcularlas
 uv run garmin parse-swims --force
 ```
 
-## MCP read-only
+## MCP
 
-El servidor local expone `list_activities`, `get_activity`, `get_swim_history` y `get_swim_session` por `stdio`:
+El servidor local se ejecuta por `stdio`:
 
 ```bash
 uv run garmin-mcp
@@ -90,7 +90,9 @@ Configuración genérica para un host MCP:
 }
 ```
 
-Otro usuario sólo necesita cambiar ambas rutas. El servidor consulta SQLite localmente y no contacta Garmin Connect.
+Otro usuario sólo necesita cambiar ambas rutas. El host inicia el MCP automáticamente; no hace falta mantener otro proceso abierto.
+
+Además de las consultas, el MCP expone `get_auth_status`, `sync_activities` y `get_sync_status`. `sync_activities` descarga el rango indicado y procesa las sesiones de piscina. Si falta una sesión válida, devuelve una instrucción para ejecutar `uv run garmin login` localmente; el MCP nunca solicita usuario, contraseña ni MFA.
 
 ## Propuestas de workouts
 

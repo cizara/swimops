@@ -10,6 +10,7 @@ from garminconnect import Garmin
 
 from swimops.download import fit_path
 from swimops.repository import Activity, ActivityRepository
+from swimops.queries import GarminHistory
 from swimops.sync import SyncSummary, sync_activities
 
 
@@ -70,6 +71,13 @@ def test_sync_downloads_all_activities_in_inclusive_range(tmp_path: Path) -> Non
     with ActivityRepository(tmp_path / "garmin.sqlite") as repository:
         assert repository.is_registered(1)
         assert repository.is_registered(2)
+    status = GarminHistory(tmp_path / "garmin.sqlite").get_sync_status()
+    assert status["activity_count"] == 2
+    assert status["from_date"] == "2026-04-15"
+    assert status["to_date"] == "2026-09-09"
+    assert status["last_sync"]["since_date"] == "2026-04-15"
+    assert status["last_sync"]["until_date"] == "2026-09-09"
+    assert status["last_sync"]["downloaded"] == 2
 
 
 def test_sync_skips_complete_activity(tmp_path: Path) -> None:

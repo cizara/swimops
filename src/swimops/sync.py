@@ -6,6 +6,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Protocol
 
+from garminconnect import GarminConnectAuthenticationError
+
 from swimops.download import GarminDownloadClient, download_fit, fit_path
 from swimops.repository import Activity, ActivityRepository
 
@@ -63,9 +65,13 @@ def sync_activities(
                     )
                 )
                 downloaded += 1
+            except GarminConnectAuthenticationError:
+                raise
             except Exception as error:
                 failed += 1
                 print(f"Actividad {activity_id}: {error}", file=sys.stderr)
+
+        repository.record_sync(since, until, downloaded, existing, failed)
 
     return SyncSummary(downloaded=downloaded, existing=existing, failed=failed)
 

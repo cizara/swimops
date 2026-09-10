@@ -255,7 +255,7 @@ No duplicar en SQLite todo lo que exista en FIT.
 
 # Fase 2 — MCP para análisis
 
-Exponer datos procesados al agente mediante tools simples.
+Exponer sincronización y datos procesados al agente mediante tools simples. El login sigue siendo local para que las credenciales no pasen por el agente.
 
 ## Tools
 
@@ -588,10 +588,18 @@ garmin sync
 MCP read-only:
 
 ```text
+get_auth_status
+get_sync_status
 list_activities
 get_activity
 get_swim_history
 get_swim_session
+```
+
+MCP sync:
+
+```text
+sync_activities
 ```
 
 Ya permite usar un agente para analizar los entrenamientos.
@@ -732,9 +740,11 @@ El MVP está terminado cuando se pueda hacer lo siguiente:
 
 2. Garmin la sincroniza.
 
-3. Ejecuto:
+3. Le pido al agente:
 
-   garmin sync
+   "Sincronizá Garmin desde el 15 de abril de 2026."
+
+   Si falta autenticación, ejecuto `garmin login` localmente y repito el pedido.
 
 4. El FIT queda almacenado.
 

@@ -163,6 +163,40 @@ class GarminHistory:
                 ]
         return result
 
+    def get_sync_status(self) -> dict[str, Any]:
+        with self._connect() as connection:
+            activity = connection.execute(
+                """
+                SELECT COUNT(*), MIN(substr(activity_date, 1, 10)),
+                       MAX(substr(activity_date, 1, 10))
+                FROM activities
+                """
+            ).fetchone()
+            parsed_swims = connection.execute(
+                "SELECT COUNT(*) FROM swim_sessions"
+            ).fetchone()[0]
+            has_sync_runs = connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sync_runs'"
+            ).fetchone()
+            latest = None
+            if has_sync_runs:
+                row = connection.execute(
+                    """
+                    SELECT finished_at, since_date, until_date,
+                           downloaded, existing, failed
+                    FROM sync_runs ORDER BY id DESC LIMIT 1
+                    """
+                ).fetchone()
+                if row:
+                    latest = dict(row)
+        return {
+            "activity_count": activity[0],
+            "from_date": activity[1],
+            "to_date": activity[2],
+            "parsed_swim_count": parsed_swims,
+            "last_sync": latest,
+        }
+
     def _connect(self) -> sqlite3.Connection:
         if not self.database_path.is_file():
             raise FileNotFoundError(f"No existe la base de datos: {self.database_path}")

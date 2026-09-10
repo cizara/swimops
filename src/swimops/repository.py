@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from swimops.swimming import ParsedSwim
@@ -84,6 +85,31 @@ class ActivityRepository:
                 ),
             )
         return result.rowcount == 1
+
+    def record_sync(
+        self,
+        since: date,
+        until: date,
+        downloaded: int,
+        existing: int,
+        failed: int,
+    ) -> None:
+        with self._connection:
+            self._connection.execute(
+                """
+                INSERT INTO sync_runs
+                    (finished_at, since_date, until_date, downloaded, existing, failed)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    datetime.now(timezone.utc).isoformat(),
+                    since.isoformat(),
+                    until.isoformat(),
+                    downloaded,
+                    existing,
+                    failed,
+                ),
+            )
 
     def replace_swim(self, swim: ParsedSwim) -> None:
         activity_id = swim.session.activity_id
@@ -237,6 +263,19 @@ class ActivityRepository:
                     seconds REAL NOT NULL,
                     high_boundary_bpm INTEGER,
                     PRIMARY KEY (activity_id, zone)
+                )
+                """
+            )
+            self._connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sync_runs (
+                    id INTEGER PRIMARY KEY,
+                    finished_at TEXT NOT NULL,
+                    since_date TEXT NOT NULL,
+                    until_date TEXT NOT NULL,
+                    downloaded INTEGER NOT NULL,
+                    existing INTEGER NOT NULL,
+                    failed INTEGER NOT NULL
                 )
                 """
             )

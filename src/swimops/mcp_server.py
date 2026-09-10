@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import os
+from datetime import date
 from pathlib import Path
 from typing import Any
 
+from garminconnect import GarminConnectAuthenticationError
 from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
 
-from swimops.auth import load_session
+from swimops.auth import SessionNotFoundError, load_session
+from swimops.processing import parse_swims
 from swimops.queries import GarminHistory
+from swimops.sync import sync_activities as run_sync
 from swimops.workouts import (
     SwimWorkout,
     create_garmin_swim_workout,
@@ -40,11 +44,90 @@ WRITE = ToolAnnotations(
     idempotentHint=False,
     openWorldHint=True,
 )
+SYNC = ToolAnnotations(
+    readOnlyHint=False,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=True,
+)
 
 
 def _history() -> GarminHistory:
-    data_dir = Path(os.environ.get("GARMIN_DATA_DIR", "data")).expanduser()
-    return GarminHistory(data_dir / "garmin.sqlite")
+    return GarminHistory(_data_dir() / "garmin.sqlite")
+
+
+def _data_dir() -> Path:
+    return Path(os.environ.get("GARMIN_DATA_DIR", "data")).expanduser()
+
+
+def _auth_required() -> dict[str, Any]:
+    return {
+        "status": "auth_required",
+        "message": "Ejecuta localmente `uv run garmin login` y vuelve a intentarlo.",
+    }
+
+
+def _date(value: str, name: str) -> date:
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError as error:
+        raise ValueError(f"{name} debe tener formato YYYY-MM-DD") from error
+    if parsed.isoformat() != value:
+        raise ValueError(f"{name} debe tener formato YYYY-MM-DD")
+    return parsed
+
+
+@mcp.tool(annotations=GARMIN_READ_ONLY)
+async def get_auth_status() -> dict[str, Any]:
+    """Comprueba si la sesión de Garmin está disponible sin solicitar credenciales."""
+    try:
+        load_session()
+    except (SessionNotFoundError, GarminConnectAuthenticationError):
+        return _auth_required()
+    return {"status": "authenticated"}
+
+
+@mcp.tool(annotations=SYNC)
+async def sync_activities(
+    since: str, until: str | None = None
+) -> dict[str, Any]:
+    """Descarga un rango de Garmin y procesa las sesiones de piscina localmente."""
+    start = _date(since, "since")
+    end = _date(until, "until") if until else date.today()
+    if start > end:
+        raise ValueError("since no puede ser posterior a until")
+    try:
+        client = load_session()
+        summary = run_sync(client, start, end, _data_dir())
+    except (SessionNotFoundError, GarminConnectAuthenticationError):
+        return _auth_required()
+
+    data_dir = _data_dir()
+    parsed = parse_swims(data_dir)
+    return {
+        "status": "completed" if not summary.failed and not parsed.failed else "partial",
+        "since": start.isoformat(),
+        "until": end.isoformat(),
+        "activities": {
+            "downloaded": summary.downloaded,
+            "existing": summary.existing,
+            "failed": summary.failed,
+        },
+        "swims": {
+            "parsed": parsed.parsed,
+            "existing": parsed.existing,
+            "failed": parsed.failed,
+        },
+    }
+
+
+@mcp.tool(annotations=READ_ONLY)
+async def get_sync_status() -> dict[str, Any]:
+    """Muestra la última sincronización y la cobertura de los datos locales."""
+    try:
+        return {"status": "available", **_history().get_sync_status()}
+    except FileNotFoundError:
+        return {"status": "not_synced"}
 
 
 @mcp.tool(annotations=READ_ONLY)

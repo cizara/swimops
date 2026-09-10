@@ -1,12 +1,16 @@
 import asyncio
+from datetime import date
 from pathlib import Path
 
 import pytest
 from mcp import Client
 
 from swimops import mcp_server
+from swimops.auth import SessionNotFoundError
 from swimops.mcp_server import mcp
+from swimops.processing import ParseSummary
 from swimops.repository import Activity, ActivityRepository
+from swimops.sync import SyncSummary
 
 
 def test_exposes_read_only_history_tools(
@@ -34,6 +38,9 @@ def test_exposes_read_only_history_tools(
             )
 
         assert {tool.name for tool in tools.tools} == {
+            "get_auth_status",
+            "sync_activities",
+            "get_sync_status",
             "list_activities",
             "get_activity",
             "get_swim_history",
@@ -45,10 +52,11 @@ def test_exposes_read_only_history_tools(
         }
         annotations = {tool.name: tool.annotations for tool in tools.tools}
         assert annotations["create_swim_workout"].read_only_hint is False
+        assert annotations["sync_activities"].read_only_hint is False
         assert all(
             annotation.read_only_hint
             for name, annotation in annotations.items()
-            if name != "create_swim_workout"
+            if name not in {"create_swim_workout", "sync_activities"}
         )
         assert result.structured_content == {
             "result": [
@@ -115,3 +123,64 @@ def test_exposes_remote_workouts_without_writes(
         assert rejected.is_error
 
     asyncio.run(check_server())
+
+
+def test_sync_reports_when_local_login_is_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def missing_session():
+        raise SessionNotFoundError("missing")
+
+    monkeypatch.setattr(mcp_server, "load_session", missing_session)
+
+    async def check_server() -> None:
+        async with Client(mcp, mode="legacy") as client:
+            auth = await client.call_tool("get_auth_status", {})
+            sync = await client.call_tool(
+                "sync_activities",
+                {"since": "2026-04-15", "until": "2026-09-10"},
+            )
+
+        assert auth.structured_content["status"] == "auth_required"
+        assert sync.structured_content["status"] == "auth_required"
+        assert "garmin login" in sync.structured_content["message"]
+
+    asyncio.run(check_server())
+
+
+def test_sync_downloads_and_processes_swims(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    garmin = object()
+    calls = []
+    monkeypatch.setenv("GARMIN_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(mcp_server, "load_session", lambda: garmin)
+
+    def sync(client, since, until, data_dir):
+        calls.append((client, since, until, data_dir))
+        return SyncSummary(downloaded=2, existing=3)
+
+    monkeypatch.setattr(mcp_server, "run_sync", sync)
+    monkeypatch.setattr(
+        mcp_server,
+        "parse_swims",
+        lambda data_dir: ParseSummary(parsed=1, existing=4),
+    )
+
+    async def check_server() -> None:
+        async with Client(mcp, mode="legacy") as client:
+            result = await client.call_tool(
+                "sync_activities",
+                {"since": "2026-04-15", "until": "2026-09-10"},
+            )
+
+        assert result.structured_content == {
+            "status": "completed",
+            "since": "2026-04-15",
+            "until": "2026-09-10",
+            "activities": {"downloaded": 2, "existing": 3, "failed": 0},
+            "swims": {"parsed": 1, "existing": 4, "failed": 0},
+        }
+
+    asyncio.run(check_server())
+    assert calls == [(garmin, date(2026, 4, 15), date(2026, 9, 10), tmp_path)]
