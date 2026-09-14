@@ -42,16 +42,16 @@ def test_validates_and_previews_workout() -> None:
     assert preview["total_distance_m"] == 1500
     assert preview["total_rest_s"] == 140
     assert preview["manual_rests"] == 2
-    assert preview["text"].count("Descanso — hasta botón Lap") == 2
-    assert "3. Repetir 8 veces:" in preview["text"]
-    assert "ritmo 1:45/100 m" in preview["text"]
-    assert "equipo: paddles" in preview["text"]
+    assert preview["text"].count("Rest — until Lap button") == 2
+    assert "3. Repeat 8 times:" in preview["text"]
+    assert "pace 1:45/100 m" in preview["text"]
+    assert "equipment: paddles" in preview["text"]
 
 
 def test_rejects_distance_that_does_not_match_pool() -> None:
     workout = {**WORKOUT, "steps": [{"type": "swim", "distance_m": 110}]}
 
-    with pytest.raises(ValidationError, match="múltiplos de la longitud"):
+    with pytest.raises(ValidationError, match="multiples of the pool length"):
         SwimWorkout.model_validate(workout)
 
 
@@ -67,7 +67,7 @@ def test_rejects_invalid_pace() -> None:
         ],
     }
 
-    with pytest.raises(ValidationError, match="formato M:SS"):
+    with pytest.raises(ValidationError, match="M:SS format"):
         SwimWorkout.model_validate(workout)
 
 
@@ -164,7 +164,7 @@ class GarminClient:
         return [
             {
                 "workoutId": 123,
-                "workoutName": "Día A",
+                "workoutName": "Day A",
                 "sportType": {"sportTypeKey": "swimming"},
                 "estimatedDistanceInMeters": 1500.0,
                 "estimatedDurationInSecs": 0,
@@ -177,7 +177,7 @@ class GarminClient:
         assert workout_id == 123
         return {
             **self.get_workouts(0, 2)[0],
-            "description": "Técnica",
+            "description": "Technique",
             "createdDate": "2026-09-01T10:00:00.0",
             "workoutSegments": [
                 {
@@ -204,7 +204,7 @@ def test_lists_compact_garmin_workouts() -> None:
     assert workouts == [
         {
             "workout_id": 123,
-            "name": "Día A",
+            "name": "Day A",
             "sport": "swimming",
             "distance_m": 1500.0,
             "duration_s": 0,
@@ -213,14 +213,14 @@ def test_lists_compact_garmin_workouts() -> None:
         }
     ]
     assert format_garmin_workouts(workouts).splitlines()[1] == (
-        "123\tswimming\t1500\t25\tDía A"
+        "123\tswimming\t1500\t25\tDay A"
     )
 
 
 def test_gets_workout_segments_without_personal_metadata() -> None:
     workout = get_garmin_workout(GarminClient(), 123)
 
-    assert workout["description"] == "Técnica"
+    assert workout["description"] == "Technique"
     assert workout["segments"] == [
         {
             "segment_order": 1,

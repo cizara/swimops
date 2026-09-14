@@ -79,21 +79,21 @@ class ParsedSwim:
 def parse_swim_fit(path: Path, activity_id: int) -> ParsedSwim:
     messages, errors = Decoder(Stream.from_file(str(path))).read()
     if errors:
-        raise SwimParseError(f"FIT inválido: {errors[0]}")
+        raise SwimParseError(f"Invalid FIT: {errors[0]}")
     return parse_swim_messages(messages, activity_id)
 
 
 def parse_swim_messages(messages: dict[str, list[dict[str, Any]]], activity_id: int) -> ParsedSwim:
     sessions = messages.get("session_mesgs", [])
     if len(sessions) != 1:
-        raise SwimParseError("El FIT debe contener una única sesión.")
+        raise SwimParseError("The FIT file must contain exactly one session.")
     raw_session = sessions[0]
     if raw_session.get("sub_sport") != "lap_swimming":
-        raise SwimParseError("La actividad no es natación en piscina.")
+        raise SwimParseError("The activity is not pool swimming.")
 
     pool_length = _float(raw_session, "pool_length")
     if pool_length <= 0:
-        raise SwimParseError("La longitud de piscina no es válida.")
+        raise SwimParseError("The pool length is invalid.")
 
     lengths = tuple(
         _parse_length(raw, activity_id, pool_length, index)

@@ -55,9 +55,9 @@ def _activity_id(activity_id: int | str) -> int:
     try:
         identifier = int(activity_id)
     except (TypeError, ValueError) as error:
-        raise ValueError("activity_id debe ser un entero positivo") from error
+        raise ValueError("activity_id must be a positive integer") from error
     if identifier < 1:
-        raise ValueError("activity_id debe ser un entero positivo")
+        raise ValueError("activity_id must be a positive integer")
     return identifier
 
 
@@ -66,10 +66,10 @@ def _fit_from_original(original: bytes) -> bytes:
         with zipfile.ZipFile(io.BytesIO(original)) as archive:
             fit_files = [info for info in archive.infolist() if info.filename.lower().endswith(".fit")]
             if len(fit_files) != 1:
-                raise FitDownloadError("El original de Garmin no contiene un único archivo FIT.")
+                raise FitDownloadError("The Garmin original does not contain exactly one FIT file.")
             return archive.read(fit_files[0])
     except zipfile.BadZipFile as error:
-        raise FitDownloadError("El original descargado de Garmin no es un archivo ZIP válido.") from error
+        raise FitDownloadError("The downloaded Garmin original is not a valid ZIP file.") from error
 
 
 def _write_new_file(destination: Path, contents: bytes) -> None:

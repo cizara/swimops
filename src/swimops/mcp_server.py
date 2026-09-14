@@ -10,6 +10,12 @@ from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
 
 from swimops.auth import SessionNotFoundError, load_session
+from swimops.config import (
+    AthleteProfile,
+    athlete_profile_path,
+    load_athlete_profile,
+    update_athlete_profile as write_athlete_profile,
+)
 from swimops.processing import parse_swims
 from swimops.queries import GarminHistory
 from swimops.sync import sync_activities as run_sync
@@ -24,7 +30,7 @@ from swimops.workouts import (
 
 mcp = MCPServer(
     "swimops",
-    instructions="Histórico local de actividades y workouts de Garmin Connect.",
+    instructions="Local Garmin Connect activity and workout history.",
 )
 GARMIN_READ_ONLY = ToolAnnotations(
     readOnlyHint=True,
@@ -43,6 +49,12 @@ WRITE = ToolAnnotations(
     destructiveHint=False,
     idempotentHint=False,
     openWorldHint=True,
+)
+LOCAL_WRITE = ToolAnnotations(
+    readOnlyHint=False,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=False,
 )
 SYNC = ToolAnnotations(
     readOnlyHint=False,
@@ -63,23 +75,39 @@ def _data_dir() -> Path:
 def _auth_required() -> dict[str, Any]:
     return {
         "status": "auth_required",
-        "message": "Ejecuta localmente `uv run garmin login` y vuelve a intentarlo.",
+        "message": "Run `uv run garmin login` locally and try again.",
     }
+
+
+def _profile_result(profile: AthleteProfile | None) -> dict[str, Any]:
+    values = profile.model_dump(exclude_none=True) if profile else {}
+    missing = [
+        field
+        for field in AthleteProfile.model_fields
+        if field not in values
+    ]
+    if not profile:
+        status = "not_configured"
+    elif missing:
+        status = "incomplete"
+    else:
+        status = "configured"
+    return {"status": status, "profile": values, "missing_fields": missing}
 
 
 def _date(value: str, name: str) -> date:
     try:
         parsed = date.fromisoformat(value)
     except ValueError as error:
-        raise ValueError(f"{name} debe tener formato YYYY-MM-DD") from error
+        raise ValueError(f"{name} must use YYYY-MM-DD format") from error
     if parsed.isoformat() != value:
-        raise ValueError(f"{name} debe tener formato YYYY-MM-DD")
+        raise ValueError(f"{name} must use YYYY-MM-DD format")
     return parsed
 
 
 @mcp.tool(annotations=GARMIN_READ_ONLY)
 async def get_auth_status() -> dict[str, Any]:
-    """Comprueba si la sesión de Garmin está disponible sin solicitar credenciales."""
+    """Check whether a Garmin session is available without requesting credentials."""
     try:
         load_session()
     except (SessionNotFoundError, GarminConnectAuthenticationError):
@@ -87,15 +115,42 @@ async def get_auth_status() -> dict[str, Any]:
     return {"status": "authenticated"}
 
 
+@mcp.tool(annotations=READ_ONLY)
+async def get_athlete_profile() -> dict[str, Any]:
+    """Return the local athlete preferences available to the coach."""
+    path = athlete_profile_path()
+    if not path.is_file():
+        return _profile_result(None)
+    return _profile_result(load_athlete_profile(path))
+
+
+@mcp.tool(annotations=LOCAL_WRITE)
+async def update_athlete_profile(
+    pool_length_m: int | None = None,
+    target_distance_m: int | None = None,
+    swim_days_per_week: int | None = None,
+    available_equipment: list[str] | None = None,
+) -> dict[str, Any]:
+    """Save user-provided athlete preferences in the local profile."""
+    profile = write_athlete_profile(
+        athlete_profile_path(),
+        pool_length_m=pool_length_m,
+        target_distance_m=target_distance_m,
+        swim_days_per_week=swim_days_per_week,
+        available_equipment=available_equipment,
+    )
+    return _profile_result(profile)
+
+
 @mcp.tool(annotations=SYNC)
 async def sync_activities(
     since: str, until: str | None = None
 ) -> dict[str, Any]:
-    """Descarga un rango de Garmin y procesa las sesiones de piscina localmente."""
+    """Download a Garmin date range and process pool sessions locally."""
     start = _date(since, "since")
     end = _date(until, "until") if until else date.today()
     if start > end:
-        raise ValueError("since no puede ser posterior a until")
+        raise ValueError("since cannot be later than until")
     try:
         client = load_session()
         summary = run_sync(client, start, end, _data_dir())
@@ -123,7 +178,7 @@ async def sync_activities(
 
 @mcp.tool(annotations=READ_ONLY)
 async def get_sync_status() -> dict[str, Any]:
-    """Muestra la última sincronización y la cobertura de los datos locales."""
+    """Show the latest sync and local data coverage."""
     try:
         return {"status": "available", **_history().get_sync_status()}
     except FileNotFoundError:
@@ -137,13 +192,13 @@ async def list_activities(
     to_date: str | None = None,
     limit: int = 50,
 ) -> list[dict[str, Any]]:
-    """Lista actividades recientes, con filtros opcionales de deporte y fechas inclusivas."""
+    """List recent activities with optional sport and inclusive date filters."""
     return _history().list_activities(sport, from_date, to_date, limit)
 
 
 @mcp.tool(annotations=READ_ONLY)
 async def get_activity(activity_id: int) -> dict[str, Any]:
-    """Devuelve el resumen de una actividad y métricas de piscina cuando existen."""
+    """Return an activity summary and pool metrics when available."""
     return _history().get_activity(activity_id)
 
 
@@ -151,7 +206,7 @@ async def get_activity(activity_id: int) -> dict[str, Any]:
 async def get_swim_history(
     from_date: str, to_date: str, limit: int = 30
 ) -> list[dict[str, Any]]:
-    """Devuelve un histórico compacto de sesiones de piscina para analizar tendencias."""
+    """Return compact pool session history for trend analysis."""
     return _history().get_swim_history(from_date, to_date, limit)
 
 
@@ -159,25 +214,25 @@ async def get_swim_history(
 async def get_swim_session(
     activity_id: int, include_lengths: bool = False
 ) -> dict[str, Any]:
-    """Devuelve resumen, laps y, opcionalmente, cada largo de una sesión de piscina."""
+    """Return a pool session summary, laps, and optionally every length."""
     return _history().get_swim_session(activity_id, include_lengths)
 
 
 @mcp.tool(annotations=READ_ONLY)
 async def preview_swim_workout(workout: dict[str, Any]) -> dict[str, Any]:
-    """Valida una propuesta de rutina y devuelve una vista previa; no escribe en Garmin."""
+    """Validate and preview a workout proposal without writing to Garmin."""
     return workout_preview(SwimWorkout.model_validate(workout))
 
 
 @mcp.tool(annotations=GARMIN_READ_ONLY)
 async def list_workouts(limit: int = 20) -> list[dict[str, Any]]:
-    """Lista workouts de Garmin Connect sin incluir metadatos personales."""
+    """List Garmin Connect workouts without personal metadata."""
     return list_garmin_workouts(load_session(), limit)
 
 
 @mcp.tool(annotations=GARMIN_READ_ONLY)
 async def get_workout(workout_id: int) -> dict[str, Any]:
-    """Devuelve el detalle y los segmentos de un workout de Garmin Connect."""
+    """Return Garmin Connect workout details and segments."""
     return get_garmin_workout(load_session(), workout_id)
 
 
@@ -185,9 +240,9 @@ async def get_workout(workout_id: int) -> dict[str, Any]:
 async def create_swim_workout(
     workout: dict[str, Any], confirmed: bool = False
 ) -> dict[str, Any]:
-    """Crea una rutina en Garmin sólo después de mostrarla y recibir aprobación explícita."""
+    """Create a Garmin workout only after preview and explicit approval."""
     if not confirmed:
-        raise ValueError("falta aprobación explícita de la vista previa")
+        raise ValueError("explicit preview approval is required")
     return create_garmin_swim_workout(
         load_session(), SwimWorkout.model_validate(workout)
     )

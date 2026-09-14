@@ -10,7 +10,7 @@ def get_activities(client: Garmin, limit: int) -> list[dict[str, Any]]:
 
 
 def format_activities(activities: list[dict[str, Any]]) -> str:
-    lines = ["ID\tFECHA\tDEPORTE\tDISTANCIA_M\tDURACION_S\tNOMBRE"]
+    lines = ["ID\tDATE\tSPORT\tDISTANCE_M\tDURATION_S\tNAME"]
     for activity in activities:
         activity_type = activity.get("activityType") or {}
         values = (

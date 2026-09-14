@@ -44,7 +44,7 @@ def test_download_fit_keeps_existing_file_without_requesting_garmin(tmp_path: Pa
 
     class Client:
         def download_activity(self, activity_id: str, dl_fmt: Garmin.ActivityDownloadFormat) -> bytes:
-            raise AssertionError("no debe descargar un archivo existente")
+            raise AssertionError("must not download an existing file")
 
     assert download_fit(Client(), 123, date(2026, 4, 15), tmp_path) == existing
     assert existing.read_bytes() == b"already downloaded"
@@ -55,7 +55,7 @@ def test_download_fit_leaves_no_final_file_when_original_is_invalid(tmp_path: Pa
         def download_activity(self, activity_id: str, dl_fmt: Garmin.ActivityDownloadFormat) -> bytes:
             return b"not a zip"
 
-    with pytest.raises(FitDownloadError, match="ZIP válido"):
+    with pytest.raises(FitDownloadError, match="valid ZIP"):
         download_fit(Client(), 123, date(2026, 4, 15), tmp_path)
 
     assert not fit_path(tmp_path, 123, date(2026, 4, 15)).exists()

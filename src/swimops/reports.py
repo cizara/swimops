@@ -79,7 +79,7 @@ class SwimReports:
         start = _date(from_date)
         end = _date(to_date)
         if start > end:
-            raise ValueError("from_date no puede ser posterior a to_date")
+            raise ValueError("from_date cannot be later than to_date")
         with self._connect() as connection:
             rows = connection.execute(
                 """
@@ -104,7 +104,7 @@ class SwimReports:
         start = _date(from_date)
         end = _date(to_date)
         if start > end:
-            raise ValueError("from_date no puede ser posterior a to_date")
+            raise ValueError("from_date cannot be later than to_date")
         query = _MAIN_SESSIONS if main_only else _FULL_SESSIONS
         with self._connect() as connection:
             rows = connection.execute(query, (from_date, to_date)).fetchall()
@@ -120,7 +120,7 @@ class SwimReports:
 
     def _connect(self) -> sqlite3.Connection:
         if not self.database_path.is_file():
-            raise FileNotFoundError(f"No existe la base de datos: {self.database_path}")
+            raise FileNotFoundError(f"Database does not exist: {self.database_path}")
         connection = sqlite3.connect(
             f"{self.database_path.resolve().as_uri()}?mode=ro", uri=True
         )
@@ -132,9 +132,9 @@ def _date(value: str) -> date:
     try:
         parsed = date.fromisoformat(value)
     except ValueError as error:
-        raise ValueError("Las fechas deben tener formato YYYY-MM-DD") from error
+        raise ValueError("Dates must use YYYY-MM-DD format") from error
     if parsed.isoformat() != value:
-        raise ValueError("Las fechas deben tener formato YYYY-MM-DD")
+        raise ValueError("Dates must use YYYY-MM-DD format")
     return parsed
 
 

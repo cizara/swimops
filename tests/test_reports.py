@@ -38,15 +38,15 @@ def add_session(
 def reports(tmp_path: Path) -> SwimReports:
     database = tmp_path / "garmin.sqlite"
     with ActivityRepository(database) as repository:
-        add_session(repository, 1, "Dia A: Técnica", "2026-09-01 10:00:00")
-        add_session(repository, 2, "Día A: Técnica", "2026-09-08 10:00:00")
-        add_session(repository, 3, "Día B: Potencia", "2026-09-09 10:00:00")
+        add_session(repository, 1, "Cafe A: Technique", "2026-09-01 10:00:00")
+        add_session(repository, 2, "Café A: Technique", "2026-09-08 10:00:00")
+        add_session(repository, 3, "Day B: Power", "2026-09-09 10:00:00")
         repository.register(
             Activity(
                 4,
                 "2026-09-07 18:00:00",
                 "soccer",
-                "Partido",
+                "Match",
                 Path("soccer.fit"),
                 4200,
                 3600,
@@ -59,14 +59,14 @@ def test_groups_routine_names_without_accents(reports: SwimReports) -> None:
     routines = reports.list_routines()
 
     assert [(item["key"], item["sessions"]) for item in routines] == [
-        ("dia b", 1),
-        ("dia a", 2),
+        ("day b", 1),
+        ("cafe a", 2),
     ]
-    assert routine_key("  DÍA   A: otra cosa") == "dia a"
+    assert routine_key("  CAFÉ   A: another set") == "cafe a"
 
 
 def test_filters_sessions_by_routine(reports: SwimReports) -> None:
-    sessions = reports.sessions("2026-09-01", "2026-09-30", ["dia a"])
+    sessions = reports.sessions("2026-09-01", "2026-09-30", ["cafe a"])
 
     assert [session["activity_id"] for session in sessions] == [1, 2]
     assert sessions[0]["distance_m"] == 700
@@ -88,7 +88,7 @@ def test_lists_all_sports_for_general_reports(
 
 
 def test_excludes_first_and_last_workout_blocks(reports: SwimReports) -> None:
-    sessions = reports.sessions("2026-09-01", "2026-09-30", ["dia b"], main_only=True)
+    sessions = reports.sessions("2026-09-01", "2026-09-30", ["day b"], main_only=True)
 
     assert len(sessions) == 1
     assert sessions[0]["distance_m"] == 500
@@ -102,7 +102,7 @@ def test_rejects_inverted_range(reports: SwimReports) -> None:
 
 
 def test_summarizes_sessions_with_weighted_metrics(reports: SwimReports) -> None:
-    sessions = reports.sessions("2026-09-01", "2026-09-30", ["dia a"])
+    sessions = reports.sessions("2026-09-01", "2026-09-30", ["cafe a"])
     summary = summarize_sessions(sessions)
 
     assert summary["sessions"] == 2

@@ -29,7 +29,7 @@ def sync_activities(
     client: GarminSyncClient, since: date, until: date, data_dir: Path
 ) -> SyncSummary:
     if since > until:
-        raise ValueError("--since no puede ser posterior a --until.")
+        raise ValueError("--since cannot be later than --until.")
 
     activities = client.get_activities_by_date(since.isoformat(), until.isoformat())
     downloaded = existing = failed = 0
@@ -72,7 +72,7 @@ def sync_activities(
                 raise
             except Exception as error:
                 failed += 1
-                print(f"Actividad {activity_id}: {error}", file=sys.stderr)
+                print(f"Activity {activity_id}: {error}", file=sys.stderr)
 
         repository.record_sync(since, until, downloaded, existing, failed)
 
@@ -85,15 +85,15 @@ def _activity_from_api(
     try:
         activity_id = int(raw_activity["activityId"])
     except (KeyError, TypeError, ValueError) as error:
-        raise ValueError("ID de actividad inválido") from error
+        raise ValueError("Invalid activity ID") from error
     if activity_id < 1:
-        raise ValueError("ID de actividad inválido")
+        raise ValueError("Invalid activity ID")
 
     timestamp = raw_activity.get("startTimeLocal") or raw_activity.get("startTimeGMT")
     try:
         activity_date = date.fromisoformat(str(timestamp)[:10])
     except ValueError as error:
-        raise ValueError("fecha de actividad inválida") from error
+        raise ValueError("Invalid activity date") from error
 
     activity_type = raw_activity.get("activityType") or {}
     sport = activity_type.get("typeKey") or "unknown"

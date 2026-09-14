@@ -19,12 +19,12 @@ def test_format_activities_outputs_useful_fields() -> None:
                 "activityType": {"typeKey": "lap_swimming"},
                 "distance": 2000.4,
                 "duration": 3600.2,
-                "activityName": "Piscina\nseries",
+                "activityName": "Pool\nintervals",
             }
         ]
     )
 
     assert output.splitlines() == [
-        "ID\tFECHA\tDEPORTE\tDISTANCIA_M\tDURACION_S\tNOMBRE",
-        "123\t2026-09-08 18:30:00\tlap_swimming\t2000\t3600\tPiscina series",
+        "ID\tDATE\tSPORT\tDISTANCE_M\tDURATION_S\tNAME",
+        "123\t2026-09-08 18:30:00\tlap_swimming\t2000\t3600\tPool intervals",
     ]

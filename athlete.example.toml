@@ -1,0 +1,11 @@
+# Copy this file to athlete.toml and adjust it for the local athlete.
+pool_length_m = 25
+target_distance_m = 1500
+swim_days_per_week = 3
+available_equipment = [
+  "paddles",
+  "fins",
+  "snorkel",
+  "kickboard",
+  "pull_buoy",
+]

@@ -7,6 +7,7 @@ from mcp import Client
 
 from swimops import mcp_server
 from swimops.auth import SessionNotFoundError
+from swimops.config import load_athlete_profile
 from swimops.mcp_server import mcp
 from swimops.processing import ParseSummary
 from swimops.repository import Activity, ActivityRepository
@@ -30,7 +31,7 @@ def test_exposes_read_only_history_tools(
                 "preview_swim_workout",
                 {
                     "workout": {
-                        "name": "Suave",
+                        "name": "Easy",
                         "pool_length_m": 25,
                         "steps": [{"type": "swim", "distance_m": 500}],
                     }
@@ -39,6 +40,8 @@ def test_exposes_read_only_history_tools(
 
         assert {tool.name for tool in tools.tools} == {
             "get_auth_status",
+            "get_athlete_profile",
+            "update_athlete_profile",
             "sync_activities",
             "get_sync_status",
             "list_activities",
@@ -56,7 +59,12 @@ def test_exposes_read_only_history_tools(
         assert all(
             annotation.read_only_hint
             for name, annotation in annotations.items()
-            if name not in {"create_swim_workout", "sync_activities"}
+            if name
+            not in {
+                "create_swim_workout",
+                "sync_activities",
+                "update_athlete_profile",
+            }
         )
         assert result.structured_content == {
             "result": [
@@ -73,6 +81,90 @@ def test_exposes_read_only_history_tools(
     asyncio.run(check_server())
 
 
+def test_exposes_local_athlete_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    profile = tmp_path / "athlete.toml"
+    profile.write_text(
+        "pool_length_m = 25\n"
+        "target_distance_m = 1500\n"
+        'available_equipment = ["paddles", "fins"]\n'
+    )
+    monkeypatch.setenv("SWIMOPS_ATHLETE_CONFIG", str(profile))
+
+    async def check_server() -> None:
+        async with Client(mcp, mode="legacy") as client:
+            result = await client.call_tool("get_athlete_profile", {})
+
+        assert result.structured_content == {
+            "status": "incomplete",
+            "profile": {
+                "pool_length_m": 25,
+                "target_distance_m": 1500,
+                "available_equipment": ["paddles", "fins"],
+            },
+            "missing_fields": ["swim_days_per_week"],
+        }
+
+    asyncio.run(check_server())
+
+
+def test_reports_missing_athlete_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SWIMOPS_ATHLETE_CONFIG", str(tmp_path / "missing.toml"))
+
+    async def check_server() -> None:
+        async with Client(mcp, mode="legacy") as client:
+            result = await client.call_tool("get_athlete_profile", {})
+
+        assert result.structured_content == {
+            "status": "not_configured",
+            "profile": {},
+            "missing_fields": [
+                "pool_length_m",
+                "target_distance_m",
+                "swim_days_per_week",
+                "available_equipment",
+            ],
+        }
+
+    asyncio.run(check_server())
+
+
+def test_updates_local_athlete_profile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    profile = tmp_path / "athlete.toml"
+    monkeypatch.setenv("SWIMOPS_ATHLETE_CONFIG", str(profile))
+
+    async def check_server() -> None:
+        async with Client(mcp, mode="legacy") as client:
+            result = await client.call_tool(
+                "update_athlete_profile",
+                {
+                    "pool_length_m": 25,
+                    "target_distance_m": 1500,
+                    "swim_days_per_week": 3,
+                    "available_equipment": ["paddles", "fins"],
+                },
+            )
+
+        assert result.structured_content == {
+            "status": "configured",
+            "profile": {
+                "pool_length_m": 25,
+                "target_distance_m": 1500,
+                "swim_days_per_week": 3,
+                "available_equipment": ["paddles", "fins"],
+            },
+            "missing_fields": [],
+        }
+
+    asyncio.run(check_server())
+    assert load_athlete_profile(profile).swim_days_per_week == 3
+
+
 def test_exposes_remote_workouts_without_writes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -81,7 +173,7 @@ def test_exposes_remote_workouts_without_writes(
             return [
                 {
                     "workoutId": 123,
-                    "workoutName": "Día A",
+                    "workoutName": "Day A",
                     "sportType": {"sportTypeKey": "swimming"},
                     "estimatedDistanceInMeters": 1500,
                     "poolLength": 25,
@@ -100,7 +192,7 @@ def test_exposes_remote_workouts_without_writes(
                 "create_swim_workout",
                 {
                     "workout": {
-                        "name": "Suave",
+                        "name": "Easy",
                         "pool_length_m": 25,
                         "steps": [{"type": "swim", "distance_m": 500}],
                     },
@@ -111,7 +203,7 @@ def test_exposes_remote_workouts_without_writes(
                 "create_swim_workout",
                 {
                     "workout": {
-                        "name": "Sin aprobar",
+                        "name": "Unapproved",
                         "pool_length_m": 25,
                         "steps": [{"type": "swim", "distance_m": 500}],
                     }

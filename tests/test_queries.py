@@ -59,9 +59,9 @@ def test_gets_compact_swim_history_in_reverse_date_order(history: GarminHistory)
 
 
 def test_rejects_unknown_or_non_swim_activity(history: GarminHistory) -> None:
-    with pytest.raises(ValueError, match="No existe"):
+    with pytest.raises(ValueError, match="does not exist"):
         history.get_activity(999)
-    with pytest.raises(ValueError, match="no es una sesión"):
+    with pytest.raises(ValueError, match="not a processed pool session"):
         history.get_swim_session(3)
 
 
