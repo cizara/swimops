@@ -28,5 +28,5 @@ def parse_swims(data_dir: Path, force: bool = False) -> ParseSummary:
                 parsed += 1
             except Exception as error:
                 failed += 1
-                print(f"Actividad {activity.garmin_id}: {error}", file=sys.stderr)
+                print(f"Activity {activity.garmin_id}: {error}", file=sys.stderr)
     return ParseSummary(parsed=parsed, existing=existing, failed=failed)

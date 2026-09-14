@@ -25,10 +25,10 @@ Drill = Literal["kick", "pull", "drill"]
 def pace_seconds(value: str) -> int:
     match = PACE_PATTERN.fullmatch(value)
     if not match or int(match.group(2)) > 59:
-        raise ValueError("el ritmo debe tener formato M:SS")
+        raise ValueError("pace must use M:SS format")
     seconds = int(match.group(1)) * 60 + int(match.group(2))
     if seconds == 0:
-        raise ValueError("el ritmo debe ser mayor que cero")
+        raise ValueError("pace must be greater than zero")
     return seconds
 
 
@@ -90,7 +90,7 @@ class SwimWorkout(BaseModel):
     def distances_match_pool(self) -> SwimWorkout:
         swim_steps = list(_swim_steps(self.steps))
         if not swim_steps:
-            raise ValueError("la rutina debe incluir al menos un bloque de nado")
+            raise ValueError("the workout must include at least one swim step")
         invalid = [
             step.distance_m
             for step in swim_steps
@@ -98,7 +98,7 @@ class SwimWorkout(BaseModel):
         ]
         if invalid:
             raise ValueError(
-                "las distancias deben ser múltiplos de la longitud de piscina: "
+                "distances must be multiples of the pool length: "
                 + ", ".join(f"{distance} m" for distance in invalid)
             )
         return self
@@ -118,7 +118,7 @@ def load_workout(path: Path) -> SwimWorkout:
 
 def list_garmin_workouts(client: Garmin, limit: int) -> list[dict[str, Any]]:
     if limit < 1:
-        raise ValueError("el límite debe ser mayor que cero")
+        raise ValueError("limit must be greater than zero")
     return [_workout_summary(workout) for workout in client.get_workouts(0, limit)]
 
 
@@ -200,7 +200,7 @@ def create_garmin_swim_workout(
     created = client.upload_workout(to_garmin_workout(workout))
     workout_id = created.get("workoutId")
     if not workout_id:
-        raise ValueError("Garmin no devolvió el ID del workout creado")
+        raise ValueError("Garmin did not return the created workout ID")
     return {
         "workout_id": workout_id,
         "name": created.get("workoutName", workout.name),
@@ -329,7 +329,7 @@ def _named_type(
 
 
 def format_garmin_workouts(workouts: list[dict[str, Any]]) -> str:
-    lines = ["ID\tDEPORTE\tDISTANCIA_M\tPISCINA_M\tNOMBRE"]
+    lines = ["ID\tSPORT\tDISTANCE_M\tPOOL_M\tNAME"]
     for workout in workouts:
         values = (
             workout["workout_id"],
@@ -416,12 +416,12 @@ def workout_preview(workout: SwimWorkout) -> dict[str, Any]:
     )
     lines = [
         workout.name,
-        f"Piscina: {workout.pool_length_m} m",
-        f"Distancia total: {_distance(workout.steps)} m",
+        f"Pool: {workout.pool_length_m} m",
+        f"Total distance: {_distance(workout.steps)} m",
     ]
     rest = _rest_seconds(steps)
     if rest:
-        lines.append(f"Descanso temporizado: {_duration(rest)}")
+        lines.append(f"Timed rest: {_duration(rest)}")
     lines.append("")
     for index, step in enumerate(steps, 1):
         lines.extend(_render_step(step, f"{index}. "))
@@ -479,37 +479,37 @@ def _rest_seconds(steps: list[WorkoutStep] | list[BasicStep]) -> int:
 
 def _render_step(step: WorkoutStep | BasicStep, prefix: str) -> list[str]:
     if isinstance(step, RepeatStep):
-        lines = [f"{prefix}Repetir {step.repeat} veces:"]
+        lines = [f"{prefix}Repeat {step.repeat} times:"]
         for child in step.steps:
             lines.extend(_render_step(child, "   - "))
         return lines
     if isinstance(step, RestStep):
-        duration = _duration(step.duration_s) if step.duration_s else "hasta botón Lap"
-        return [f"{prefix}Descanso — {duration}"]
+        duration = _duration(step.duration_s) if step.duration_s else "until Lap button"
+        return [f"{prefix}Rest — {duration}"]
 
     labels = {
-        "warmup": "Calentamiento",
-        "swim": "Nado",
-        "cooldown": "Vuelta a la calma",
+        "warmup": "Warm-up",
+        "swim": "Swim",
+        "cooldown": "Cool-down",
     }
     strokes = {
-        "any": "cualquier estilo",
-        "freestyle": "libre",
-        "backstroke": "espalda",
-        "breaststroke": "braza",
-        "butterfly": "mariposa",
-        "individual_medley": "estilos",
-        "mixed": "mixto",
+        "any": "any stroke",
+        "freestyle": "freestyle",
+        "backstroke": "backstroke",
+        "breaststroke": "breaststroke",
+        "butterfly": "butterfly",
+        "individual_medley": "individual medley",
+        "mixed": "mixed",
     }
     parts = [labels[step.type], f"{step.distance_m} m"]
     if step.stroke:
         parts.append(strokes[step.stroke])
     if step.drill:
-        parts.append(f"técnica: {step.drill}")
+        parts.append(f"drill: {step.drill}")
     if step.equipment:
-        parts.append(f"equipo: {step.equipment}")
+        parts.append(f"equipment: {step.equipment}")
     if step.target:
-        parts.append(f"ritmo {step.target.pace}/100 m")
+        parts.append(f"pace {step.target.pace}/100 m")
     if step.notes:
         parts.append(step.notes)
     return [prefix + " — ".join(parts)]

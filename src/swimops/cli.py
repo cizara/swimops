@@ -30,7 +30,7 @@ from swimops.workouts import (
 def positive_int(value: str) -> int:
     number = int(value)
     if number < 1:
-        raise argparse.ArgumentTypeError("debe ser mayor que cero")
+        raise argparse.ArgumentTypeError("must be greater than zero")
     return number
 
 
@@ -38,38 +38,38 @@ def iso_date(value: str) -> date:
     try:
         parsed = date.fromisoformat(value)
     except ValueError as error:
-        raise argparse.ArgumentTypeError("debe tener formato YYYY-MM-DD") from error
+        raise argparse.ArgumentTypeError("must use YYYY-MM-DD format") from error
     if parsed.isoformat() != value:
-        raise argparse.ArgumentTypeError("debe tener formato YYYY-MM-DD")
+        raise argparse.ArgumentTypeError("must use YYYY-MM-DD format")
     return parsed
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="garmin")
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("login", help="inicia sesión y guarda los tokens localmente")
-    activities = commands.add_parser("activities", help="lista actividades recientes")
+    commands.add_parser("login", help="sign in and save tokens locally")
+    activities = commands.add_parser("activities", help="list recent activities")
     activities.add_argument("--limit", type=positive_int, default=10)
-    sync = commands.add_parser("sync", help="descarga y registra actividades")
+    sync = commands.add_parser("sync", help="download and register activities")
     sync.add_argument("--since", type=iso_date, required=True)
     sync.add_argument("--until", type=iso_date)
     sync.add_argument("--data-dir", type=Path, default=Path("data"))
-    parse = commands.add_parser("parse-swims", help="procesa los FIT de natación en piscina")
+    parse = commands.add_parser("parse-swims", help="process pool swimming FIT files")
     parse.add_argument("--data-dir", type=Path, default=Path("data"))
-    parse.add_argument("--force", action="store_true", help="vuelve a procesar sesiones existentes")
+    parse.add_argument("--force", action="store_true", help="reprocess existing sessions")
     preview = commands.add_parser(
-        "workout-preview", help="valida y muestra una rutina de natación"
+        "workout-preview", help="validate and preview a swimming workout"
     )
     preview.add_argument("file", type=Path)
-    workouts = commands.add_parser("workouts", help="lista workouts de Garmin Connect")
+    workouts = commands.add_parser("workouts", help="list Garmin Connect workouts")
     workouts.add_argument("--limit", type=positive_int, default=20)
-    workout = commands.add_parser("workout", help="muestra el detalle de un workout")
+    workout = commands.add_parser("workout", help="show workout details")
     workout.add_argument("workout_id", type=positive_int)
     create = commands.add_parser(
-        "workout-create", help="crea en Garmin una rutina previamente revisada"
+        "workout-create", help="create a previously reviewed workout in Garmin"
     )
     create.add_argument("file", type=Path)
-    create.add_argument("--confirm", action="store_true", help="confirma la creación")
+    create.add_argument("--confirm", action="store_true", help="confirm creation")
     return parser
 
 
@@ -78,14 +78,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.command == "login":
             login()
-            print(f"Sesión guardada en {token_store_path()}")
+            print(f"Session saved to {token_store_path()}")
             return 0
 
         if args.command == "parse-swims":
             summary = parse_swims(args.data_dir, args.force)
             print(
-                f"Procesadas: {summary.parsed} | "
-                f"Existentes: {summary.existing} | Fallidas: {summary.failed}"
+                f"Processed: {summary.parsed} | "
+                f"Existing: {summary.existing} | Failed: {summary.failed}"
             )
             return 1 if summary.failed else 0
 
@@ -97,7 +97,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             workout = load_workout(args.file)
             if not args.confirm:
                 raise ValueError(
-                    "revisa la rutina con `garmin workout-preview` y usa --confirm"
+                    "review the workout with `garmin workout-preview` and use --confirm"
                 )
             print(
                 json.dumps(
@@ -132,29 +132,29 @@ def main(argv: Sequence[str] | None = None) -> int:
             client, args.since, args.until or date.today(), args.data_dir
         )
         print(
-            f"Descargadas: {summary.downloaded} | "
-            f"Existentes: {summary.existing} | Fallidas: {summary.failed}"
+            f"Downloaded: {summary.downloaded} | "
+            f"Existing: {summary.existing} | Failed: {summary.failed}"
         )
         parse_summary = parse_swims(args.data_dir)
         print(
-            f"Natación procesada: {parse_summary.parsed} | "
-            f"Existente: {parse_summary.existing} | Fallida: {parse_summary.failed}"
+            f"Swims processed: {parse_summary.parsed} | "
+            f"Existing: {parse_summary.existing} | Failed: {parse_summary.failed}"
         )
         return 1 if summary.failed or parse_summary.failed else 0
     except (SessionNotFoundError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
     except GarminConnectAuthenticationError:
         print(
-            "Error: la sesión no es válida; ejecuta `garmin login` de nuevo.",
+            "Error: the session is invalid; run `garmin login` again.",
             file=sys.stderr,
         )
     except GarminConnectTooManyRequestsError:
         print(
-            "Error: Garmin limitó temporalmente las solicitudes; inténtalo más tarde.",
+            "Error: Garmin temporarily rate-limited requests; try again later.",
             file=sys.stderr,
         )
     except GarminConnectConnectionError as error:
-        print(f"Error de conexión con Garmin: {error}", file=sys.stderr)
+        print(f"Garmin connection error: {error}", file=sys.stderr)
     except KeyboardInterrupt:
-        print("\nCancelado.", file=sys.stderr)
+        print("\nCancelled.", file=sys.stderr)
     return 1

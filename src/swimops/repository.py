@@ -1,4 +1,4 @@
-"""Persistencia local de actividades descargadas de Garmin."""
+"""Local persistence for activities downloaded from Garmin."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from swimops.swimming import ParsedSwim
 
 @dataclass(frozen=True, slots=True)
 class Activity:
-    """Datos mínimos que se conservan para una actividad descargada."""
+    """Minimal data retained for a downloaded activity."""
 
     garmin_id: int
     date: str
@@ -24,7 +24,7 @@ class Activity:
 
 
 class ActivityRepository:
-    """Registro SQLite de actividades, con una transacción por actividad."""
+    """SQLite activity registry with one transaction per activity."""
 
     def __init__(self, database_path: str | Path) -> None:
         self.database_path = Path(database_path)
@@ -66,10 +66,10 @@ class ActivityRepository:
         return row is not None
 
     def register(self, activity: Activity) -> bool:
-        """Registra una actividad y devuelve ``False`` si ya existía.
+        """Register an activity and return ``False`` if it already existed.
 
-        La inserción es atómica: un fallo no deja un registro parcial y permite
-        que una sincronización posterior vuelva a intentar esa actividad.
+        The insert is atomic: a failure leaves no partial record, allowing a
+        later sync to retry the activity.
         """
         exists = self.is_registered(activity.garmin_id)
         with self._connection:

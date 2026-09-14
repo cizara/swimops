@@ -102,5 +102,5 @@ def test_rejects_non_pool_swim() -> None:
     messages = swim_messages()
     messages["session_mesgs"][0]["sub_sport"] = "open_water"
 
-    with pytest.raises(SwimParseError, match="piscina"):
+    with pytest.raises(SwimParseError, match="pool swimming"):
         parse_swim_messages(messages, 123)

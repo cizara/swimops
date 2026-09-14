@@ -30,7 +30,7 @@ def _prepare_token_store(path: Path) -> None:
 def load_session(token_store: Path | None = None) -> Garmin:
     path = token_store or token_store_path()
     if not (path / TOKEN_FILENAME).is_file():
-        raise SessionNotFoundError("No hay una sesión guardada. Ejecuta `garmin login`.")
+        raise SessionNotFoundError("No saved session found. Run `garmin login`.")
     client = Garmin()
     client.login(str(path))
     return client
@@ -50,17 +50,17 @@ def login(
         except GarminConnectAuthenticationError:
             pass
 
-    email = input_fn("Email de Garmin: ").strip()
+    email = input_fn("Garmin email: ").strip()
     if not email:
-        raise ValueError("El email no puede estar vacío.")
-    password = password_fn("Contraseña de Garmin: ")
+        raise ValueError("Email cannot be empty.")
+    password = password_fn("Garmin password: ")
     if not password:
-        raise ValueError("La contraseña no puede estar vacía.")
+        raise ValueError("Password cannot be empty.")
 
     client = Garmin(
         email=email,
         password=password,
-        prompt_mfa=lambda: password_fn("Código MFA: ").strip(),
+        prompt_mfa=lambda: password_fn("MFA code: ").strip(),
     )
     password = ""
     client.login(str(path))

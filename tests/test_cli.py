@@ -72,8 +72,8 @@ def test_sync_prints_summary_and_fails_if_an_activity_failed(
 
     assert result == 1
     assert capsys.readouterr().out == (
-        "Descargadas: 2 | Existentes: 3 | Fallidas: 1\n"
-        "Natación procesada: 2 | Existente: 3 | Fallida: 0\n"
+        "Downloaded: 2 | Existing: 3 | Failed: 1\n"
+        "Swims processed: 2 | Existing: 3 | Failed: 0\n"
     )
 
 
@@ -88,7 +88,7 @@ def test_parse_swims_does_not_load_garmin_session(
     )
 
     assert cli.main(["parse-swims"]) == 0
-    assert capsys.readouterr().out == "Procesadas: 28 | Existentes: 0 | Fallidas: 0\n"
+    assert capsys.readouterr().out == "Processed: 28 | Existing: 0 | Failed: 0\n"
 
 
 def test_workout_preview_does_not_load_garmin_session(
@@ -98,13 +98,13 @@ def test_workout_preview_does_not_load_garmin_session(
 ) -> None:
     path = tmp_path / "workout.json"
     path.write_text(
-        '{"name":"Técnica","pool_length_m":25,'
+        '{"name":"Technique","pool_length_m":25,'
         '"steps":[{"type":"swim","distance_m":100,"drill":"drill"}]}'
     )
     monkeypatch.setattr(cli, "load_session", lambda: pytest.fail("unexpected login"))
 
     assert cli.main(["workout-preview", str(path)]) == 0
-    assert "Distancia total: 100 m" in capsys.readouterr().out
+    assert "Total distance: 100 m" in capsys.readouterr().out
 
 
 def test_workouts_lists_remote_workouts(
@@ -118,7 +118,7 @@ def test_workouts_lists_remote_workouts(
         lambda received, limit: [
             {
                 "workout_id": 123,
-                "name": "Día A",
+                "name": "Day A",
                 "sport": "swimming",
                 "distance_m": 1500,
                 "duration_s": 0,
@@ -129,7 +129,7 @@ def test_workouts_lists_remote_workouts(
     )
 
     assert cli.main(["workouts", "--limit", "5"]) == 0
-    assert "123\tswimming\t1500\t25\tDía A" in capsys.readouterr().out
+    assert "123\tswimming\t1500\t25\tDay A" in capsys.readouterr().out
 
 
 def test_workout_create_requires_confirmation_before_login(
@@ -139,13 +139,13 @@ def test_workout_create_requires_confirmation_before_login(
 ) -> None:
     path = tmp_path / "workout.json"
     path.write_text(
-        '{"name":"Suave","pool_length_m":25,'
+        '{"name":"Easy","pool_length_m":25,'
         '"steps":[{"type":"swim","distance_m":500}]}'
     )
     monkeypatch.setattr(cli, "load_session", lambda: pytest.fail("unexpected login"))
 
     assert cli.main(["workout-create", str(path)]) == 1
-    assert "usa --confirm" in capsys.readouterr().err
+    assert "use --confirm" in capsys.readouterr().err
 
 
 def test_workout_create_uploads_confirmed_workout(
@@ -155,7 +155,7 @@ def test_workout_create_uploads_confirmed_workout(
 ) -> None:
     path = tmp_path / "workout.json"
     path.write_text(
-        '{"name":"Suave","pool_length_m":25,'
+        '{"name":"Easy","pool_length_m":25,'
         '"steps":[{"type":"swim","distance_m":500}]}'
     )
     client = object()

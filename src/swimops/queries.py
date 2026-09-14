@@ -23,7 +23,7 @@ class GarminHistory:
         start = _validate_date(from_date) if from_date else None
         end = _validate_date(to_date) if to_date else None
         if start and end and start > end:
-            raise ValueError("from_date no puede ser posterior a to_date.")
+            raise ValueError("from_date cannot be later than to_date.")
         if sport:
             clauses.append("a.sport = ?")
             parameters.append(sport)
@@ -69,7 +69,7 @@ class GarminHistory:
                 (activity_id,),
             ).fetchone()
             if row is None:
-                raise ValueError(f"No existe la actividad {activity_id}.")
+                raise ValueError(f"Activity {activity_id} does not exist.")
             result = _activity_summary(row)
             if row[4] is not None:
                 result["swim"] = {
@@ -90,7 +90,7 @@ class GarminHistory:
         start = _validate_date(from_date)
         end = _validate_date(to_date)
         if start > end:
-            raise ValueError("from_date no puede ser posterior a to_date.")
+            raise ValueError("from_date cannot be later than to_date.")
         _validate_limit(limit)
         with self._connect() as connection:
             rows = connection.execute(
@@ -131,7 +131,7 @@ class GarminHistory:
     ) -> dict[str, Any]:
         activity = self.get_activity(activity_id)
         if "swim" not in activity:
-            raise ValueError(f"La actividad {activity_id} no es una sesión de piscina procesada.")
+            raise ValueError(f"Activity {activity_id} is not a processed pool session.")
         with self._connect() as connection:
             laps = [
                 dict(row)
@@ -199,7 +199,7 @@ class GarminHistory:
 
     def _connect(self) -> sqlite3.Connection:
         if not self.database_path.is_file():
-            raise FileNotFoundError(f"No existe la base de datos: {self.database_path}")
+            raise FileNotFoundError(f"Database does not exist: {self.database_path}")
         connection = sqlite3.connect(f"{self.database_path.resolve().as_uri()}?mode=ro", uri=True)
         connection.row_factory = sqlite3.Row
         return connection
@@ -238,12 +238,12 @@ def _validate_date(value: str) -> str:
     try:
         parsed = date.fromisoformat(value)
     except ValueError as error:
-        raise ValueError("Las fechas deben tener formato YYYY-MM-DD.") from error
+        raise ValueError("Dates must use YYYY-MM-DD format.") from error
     if parsed.isoformat() != value:
-        raise ValueError("Las fechas deben tener formato YYYY-MM-DD.")
+        raise ValueError("Dates must use YYYY-MM-DD format.")
     return value
 
 
 def _validate_limit(limit: int) -> None:
     if not 1 <= limit <= 500:
-        raise ValueError("limit debe estar entre 1 y 500.")
+        raise ValueError("limit must be between 1 and 500.")
